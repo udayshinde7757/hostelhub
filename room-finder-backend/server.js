@@ -1,88 +1,148 @@
-const express = require("express");
-const app = express();
+require("dotenv").config();
 
-const PORT = 3000;
+const express = require("express");
+const mongoose = require("mongoose");
+const cors = require("cors");
+const Room = require("./models/Room");
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+const MONGODB_URI = process.env.MONGODB_URI;
 
 app.use(express.json());
+app.use(cors());
 
-let rooms = [
-  {
-    id: 1,
-    name: "Sai Hostel",
-    price: 5000,
-    location: "Dharampeth",
-    image: "https://via.placeholder.com/150",
-  },
-  {
-    id: 2,
-    name: "Shivam Rooms",
-    price: 3500,
-    location: "Hingna",
-    image: "https://via.placeholder.com/150",
-  },
-  {
-    id: 3,
-    name: "Green Stay",
-    price: 6000,
-    location: "Sitabuldi",
-    image: "https://via.placeholder.com/150",
-  },
-];
+if (!MONGODB_URI) {
+  console.log("Missing MONGODB_URI in environment variables");
+}
+
+if (MONGODB_URI) {
+  mongoose
+    .connect(MONGODB_URI)
+    .then(() => console.log("MongoDB Connected"))
+    .catch((err) => console.log("Connection Error", err));
+}
 
 app.get("/", (req, res) => {
   res.send("Server is running successfully");
 });
 
-app.get("/rooms", (req, res) => {
-  const location = req.query.location;
+app.get("/rooms", async (req, res) => {
+  try {
+    const location = req.query.location;
+    const query = {};
 
-  if (location) {
-    const filteredRooms = rooms.filter(
-      (room) => room.location.toLowerCase() === location.toLowerCase()
+    if (location) {
+      query.location = new RegExp(`^${location}$`, "i");
+    }
+
+    const rooms = await Room.find(query).sort({ createdAt: -1 });
+    res.json(rooms);
+  } catch (error) {
+    res.status(500).json({ message: "Failed to fetch rooms", error: error.message });
+  }
+});
+
+app.get("/rooms/:id", async (req, res) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: "Invalid room ID" });
+    }
+
+    const room = await Room.findById(req.params.id);
+
+    if (!room) {
+      return res.status(404).json({ message: "Room not found" });
+    }
+
+    res.json(room);
+  } catch (error) {
+    res.status(500).json({ message: "Failed to fetch room", error: error.message });
+  }
+});
+
+app.post("/rooms", async (req, res) => {
+  try {
+    const { name, price, location, image } = req.body;
+
+    if (!name || !price || !location) {
+      return res.status(400).json({ message: "All fields are required" });
+    }
+
+    const newRoom = await Room.create({
+      name,
+      price,
+      location,
+      image: image || "https://via.placeholder.com/150",
+    });
+
+    res.status(201).json({
+      message: "Room added successfully",
+      room: newRoom,
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to add room", error: error.message });
+  }
+});
+
+app.put("/rooms/:id", async (req, res) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: "Invalid room ID" });
+    }
+
+    const { name, price, location, image } = req.body;
+
+    if (!name || !price || !location) {
+      return res.status(400).json({ message: "All fields are required" });
+    }
+
+    const updatedRoom = await Room.findByIdAndUpdate(
+      req.params.id,
+      {
+        name,
+        price,
+        location,
+        image: image || "https://via.placeholder.com/150",
+      },
+      {
+        new: true,
+        runValidators: true,
+      }
     );
-    return res.json(filteredRooms);
-  }
 
-  res.json(rooms);
+    if (!updatedRoom) {
+      return res.status(404).json({ message: "Room not found" });
+    }
+
+    res.json({
+      message: "Room updated successfully",
+      room: updatedRoom,
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to update room", error: error.message });
+  }
 });
 
-app.post("/rooms", (req, res) => {
-  const { name, price, location, image } = req.body;
+app.delete("/rooms/:id", async (req, res) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: "Invalid room ID" });
+    }
 
-  if (!name || !price || !location) {
-    return res.status(400).json({ message: "All fields are required" });
+    const deletedRoom = await Room.findByIdAndDelete(req.params.id);
+
+    if (!deletedRoom) {
+      return res.status(404).json({ message: "Room not found" });
+    }
+
+    res.json({
+      message: "Room deleted successfully",
+      room: deletedRoom,
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to delete room", error: error.message });
   }
-
-  const newRoom = {
-    id: rooms.length + 1,
-    name,
-    price,
-    location,
-    image: image || "https://via.placeholder.com/150",
-  };
-
-  rooms.push(newRoom);
-
-  res.status(201).json({
-    message: "Room added successfully",
-    room: newRoom,
-  });
-});
-
-app.delete("/rooms/:id", (req, res) => {
-  const roomId = parseInt(req.params.id, 10);
-  const index = rooms.findIndex((room) => room.id === roomId);
-
-  if (index === -1) {
-    return res.status(404).json({ message: "Room not found" });
-  }
-
-  const deletedRoom = rooms.splice(index, 1);
-
-  res.json({
-    message: "Room deleted successfully",
-    room: deletedRoom,
-  });
 });
 
 app.listen(PORT, () => {
