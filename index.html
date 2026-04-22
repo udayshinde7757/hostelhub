@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RoomSathi - Nagpur Room Finder</title>
+  <!-- Link to our CSS file -->
+  <link rel="stylesheet" href="style.css">
+  <!-- Google Fonts for modern text -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Lucide icons for easy icons (like a font, but for icons) -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+
+  <!-- ===============================
+       1. NAVBAR (Top menu)
+  ================================ -->
+  <nav class="navbar">
+    <div class="nav-container">
+      <div class="logo">
+        <i data-lucide="compass" class="logo-icon"></i> <span>Room</span>Sathi
+      </div>
+      <div class="nav-links">
+        <a href="#" class="active">Home</a>
+        <a href="#" id="openAddRoomBtn">Add Room</a>
+        <a href="#" id="openLoginBtn">Login</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ===============================
+       2. HERO SECTION (Blue gradient area)
+  ================================ -->
+  <header class="hero">
+    <div class="badge-pill">
+      <i data-lucide="sparkles"></i> 16 hand-picked rooms in Nagpur
+    </div>
+    
+    <h1>Sleep well.<br>Wander further.</h1>
+    <p>Discover premium rooms with soul — from quiet corners in Sadar to bustling streets of Manish Nagar.</p>
+    
+    <!-- Area Dropdown mimicking the search bar -->
+    <div class="search-bar">
+      <i data-lucide="search" class="search-icon"></i>
+      <select id="heroAreaSelect" class="search-input">
+        <option value="all">Search by area in Nagpur...</option>
+        <option value="Sadar">Sadar</option>
+        <option value="Dharampeth">Dharampeth</option>
+        <option value="Sitabuldi">Sitabuldi</option>
+        <option value="Manish Nagar">Manish Nagar</option>
+        <option value="Hingna">Hingna</option>
+        <option value="Trimurti Nagar">Trimurti Nagar</option>
+        <option value="IT Park">IT Park</option>
+      </select>
+    </div>
+
+    <!-- Quick select pills -->
+    <div class="quick-links">
+      <button class="pill" data-area="Dharampeth">Dharampeth</button>
+      <button class="pill" data-area="Manish Nagar">Manish Nagar</button>
+      <button class="pill" data-area="Sitabuldi">Sitabuldi</button>
+      <button class="pill" data-area="IT Park">IT Park</button>
+      <button class="pill" data-area="Sadar">Sadar</button>
+    </div>
+  </header>
+
+  <!-- ===============================
+       3. MAIN CONTENT (Filters & Room Grid)
+  ================================ -->
+  <main class="container">
+    <div class="listing-header">
+      <div class="header-titles">
+        <h2 id="resultCount">16 stays found</h2>
+        <p class="subtitle">Sorted by recommended</p>
+      </div>
+      
+      <!-- Filters -->
+      <div class="filters">
+        <div class="filter-item">
+          <i data-lucide="sliders-horizontal"></i>
+          <input type="number" id="priceFilter" placeholder="Max Price (₹)" class="price-input">
+        </div>
+      </div>
+    </div>
+
+    <!-- Room Cards Container -->
+    <div id="roomContainer" class="room-grid">
+      <!-- JavaScript will inject cards here -->
+    </div>
+    
+    <!-- Empty State Message -->
+    <div id="noResults" class="no-results hidden">
+      <i data-lucide="search-x" class="empty-icon"></i>
+      <h3>No rooms found</h3>
+      <p>Try increasing your price limit or changing the area.</p>
+    </div>
+  </main>
+
+  <!-- ===============================
+       4. MODALS (Popups for Forms)
+  ================================ -->
+  
+  <!-- "Add Room" Modal -->
+  <div id="addRoomModal" class="modal hidden">
+    <div class="modal-content">
+      <span class="close-btn" id="closeAddRoomBtn"><i data-lucide="x"></i></span>
+      <h2>Add a New Room</h2>
+      <form id="addRoomForm">
+        <div class="form-group">
+          <label>Room Name</label>
+          <input type="text" id="roomNameInput" placeholder="e.g. Cozy PG for Boys" required>
+        </div>
+        <div class="form-group">
+          <label>Price (₹ per month)</label>
+          <input type="number" id="roomPriceInput" placeholder="e.g. 5000" required>
+        </div>
+        <div class="form-group">
+          <label>Area in Nagpur</label>
+          <select id="roomAreaInput" required>
+            <option value="" disabled selected>Select an area</option>
+            <option value="Sadar">Sadar</option>
+            <option value="Dharampeth">Dharampeth</option>
+            <option value="Sitabuldi">Sitabuldi</option>
+            <option value="Manish Nagar">Manish Nagar</option>
+            <option value="Hingna">Hingna</option>
+            <option value="Trimurti Nagar">Trimurti Nagar</option>
+            <option value="IT Park">IT Park</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Image URL (Optional)</label>
+          <input type="text" id="roomImageInput" placeholder="Paste an image URL">
+        </div>
+        <p id="formError" class="error-text hidden">Please fill in all required fields properly.</p>
+        <button type="submit" class="btn-primary full-width">Add Room</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- "Login" Modal (UI only) -->
+  <div id="loginModal" class="modal hidden">
+    <div class="modal-content">
+      <span class="close-btn" id="closeLoginBtn"><i data-lucide="x"></i></span>
+      <h2>Login to RoomSathi</h2>
+      <form id="loginForm">
+        <div class="form-group">
+          <label>Email Address</label>
+          <input type="email" placeholder="student@example.com" required>
+        </div>
+        <div class="form-group">
+          <label>Password</label>
+          <input type="password" placeholder="••••••••" required>
+        </div>
+        <button type="button" class="btn-primary full-width" onclick="alert('Login feature coming soon!')">Login</button>
+        <p class="form-footer">Don't have an account? <a href="#" id="openSignupBtn">Sign up</a></p>
+      </form>
+    </div>
+  </div>
+
+  <!-- JS File link -->
+  <script src="script.js"></script>
+</body>
+</html>
