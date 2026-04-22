@@ -12,15 +12,28 @@ const roomSchema = new mongoose.Schema(
       required: true,
       min: 0,
     },
+    ownerContact: {
+      type: String,
+      required: true,
+      trim: true,
+    },
     location: {
       type: String,
       required: true,
       trim: true,
     },
+    messAvailable: {
+      type: Boolean,
+      default: false,
+    },
     image: {
       type: String,
       default: "https://via.placeholder.com/150",
       trim: true,
+    },
+    images: {
+      type: [String],
+      default: [],
     },
   },
   {
