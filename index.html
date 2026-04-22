@@ -7,6 +7,8 @@
   <link rel="icon" type="image/jpeg" href="logo.jpeg">
   <!-- Link to our CSS file -->
   <link rel="stylesheet" href="style.css">
+  <!-- Leaflet (OpenStreetMap) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
   <!-- Google Fonts for modern text -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <!-- Lucide icons for easy icons (like a font, but for icons) -->
@@ -24,6 +26,7 @@
       <div class="nav-links">
         <a href="#" class="active">Home</a>
         <a href="#" id="openAddRoomBtn">Add Room</a>
+        <a href="#" id="openDirectionsBtn">Google Map</a>
         <a href="#" id="openLoginBtn">Login</a>
       </div>
     </div>
@@ -95,6 +98,18 @@
       <h3>No rooms found</h3>
       <p>Try increasing your price limit or changing the area.</p>
     </div>
+
+    <!-- Map + Route Section (shown when user requests directions) -->
+    <section id="mapSection" class="map-section hidden" aria-label="Map and route">
+      <div class="map-topbar">
+        <div>
+          <h3>Route Preview</h3>
+          <p id="routeMeta" class="route-meta">Enter a destination to see the best route.</p>
+        </div>
+        <button id="hideMapBtn" class="btn-secondary" type="button">Hide</button>
+      </div>
+      <div id="map" class="map" role="application" aria-label="Map"></div>
+    </section>
   </main>
 
   <!-- ===============================
@@ -158,7 +173,41 @@
     </div>
   </div>
 
+  <!-- "Directions" Modal (Google Maps + optimal route preview) -->
+  <div id="directionsModal" class="modal hidden">
+    <div class="modal-content">
+      <span class="close-btn" id="closeDirectionsBtn"><i data-lucide="x"></i></span>
+      <h2>Get Directions</h2>
+      <form id="directionsForm">
+        <div class="form-group">
+          <label>Destination</label>
+          <input
+            type="text"
+            id="destinationInput"
+            placeholder="e.g. VNIT Nagpur, Dharampeth"
+            autocomplete="off"
+            required
+          >
+        </div>
+        <div class="form-group">
+          <label>Travel Mode</label>
+          <select id="travelModeSelect">
+            <option value="driving" selected>Driving</option>
+            <option value="walking">Walking</option>
+            <option value="cycling">Cycling</option>
+          </select>
+        </div>
+        <p id="directionsError" class="error-text hidden"></p>
+        <div class="btn-row">
+          <button id="previewRouteBtn" type="submit" class="btn-primary">Preview Route</button>
+          <button id="openGoogleMapsBtn" type="button" class="btn-secondary">Open Google Maps</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- JS File link -->
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
   <script src="script.js"></script>
 </body>
 </html>
