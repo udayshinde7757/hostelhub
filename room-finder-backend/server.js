@@ -10,7 +10,7 @@ const https = require("https");
 const Room = require("./models/Room");
 
 const app = express();
-const PORT = Number(process.env.PORT) || 3001;
+const PORT = Number(process.env.PORT) || 3000;
 const MONGODB_URI = process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/roomsathi";
 const uploadsDir = path.join(__dirname, "uploads");
 

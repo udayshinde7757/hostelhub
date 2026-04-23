@@ -386,6 +386,11 @@ a {
   font-size: 1rem;
 }
 
+.card-link-button {
+  display: block;
+  text-align: center;
+}
+
 .btn-primary:hover {
   background: #4667de;
 }
