@@ -22,7 +22,14 @@ const routeMeta = document.getElementById("routeMeta");
 // ============================================
 async function fetchRoomsFromBackend() {
   try {
-    roomContainer.innerHTML = "<p>Loading rooms from Nagpur...</p>";
+    roomContainer.innerHTML = Array(6).fill(`
+      <div class="skeleton-card">
+        <div class="skeleton skeleton-img"></div>
+        <div class="skeleton skeleton-text-1"></div>
+        <div class="skeleton skeleton-text-2"></div>
+        <div class="skeleton skeleton-btn"></div>
+      </div>
+    `).join('');
 
     const response = await fetch(`${API_URL}/rooms`);
 
@@ -36,7 +43,8 @@ async function fetchRoomsFromBackend() {
   } catch (error) {
     console.error("API Error:", error);
     roomContainer.innerHTML =
-      '<p class="error-text">Could not connect to the backend server. Make sure it is running.</p>';
+      '<div class="no-results"><i data-lucide="alert-circle" class="empty-icon" style="color: #ef4444;"></i><h3 style="color: #ef4444;">Connection Error</h3><p>Could not connect to the backend server. Make sure it is running.</p></div>';
+    lucide.createIcons();
   }
 }
 
@@ -107,8 +115,14 @@ function applyFilters() {
   renderRooms(filteredRooms);
 }
 
+let filterTimeout;
+function debouncedApplyFilters() {
+  clearTimeout(filterTimeout);
+  filterTimeout = setTimeout(applyFilters, 150);
+}
+
 heroAreaSelect.addEventListener("change", applyFilters);
-priceFilterInput.addEventListener("input", applyFilters);
+priceFilterInput.addEventListener("input", debouncedApplyFilters);
 quickAreaPills.forEach((pill) => {
   pill.addEventListener("click", () => {
     heroAreaSelect.value = pill.getAttribute("data-area");
@@ -353,6 +367,12 @@ addRoomForm.addEventListener("submit", async (event) => {
   }
 
   formErrorText.classList.add("hidden");
+  
+  const submitBtn = addRoomForm.querySelector("button[type='submit']");
+  const originalBtnText = submitBtn.innerText;
+  submitBtn.innerText = "Adding Room...";
+  submitBtn.disabled = true;
+  submitBtn.style.opacity = "0.7";
 
   try {
     const response = await fetch(`${API_URL}/rooms`, {
@@ -375,6 +395,10 @@ addRoomForm.addEventListener("submit", async (event) => {
     console.error("Submit Error:", error);
     formErrorText.innerText = "Error: " + error.message;
     formErrorText.classList.remove("hidden");
+  } finally {
+    submitBtn.innerText = originalBtnText;
+    submitBtn.disabled = false;
+    submitBtn.style.opacity = "1";
   }
 });
 
