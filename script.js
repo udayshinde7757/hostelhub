@@ -3,10 +3,7 @@
 // ============================================
 let roomsData = [];
 
-const API_URL =
-  window.location.protocol === "http:" || window.location.protocol === "https:"
-    ? window.location.origin
-    : "http://localhost:3000";
+const API_URL = "http://localhost:3001";
 
 lucide.createIcons();
 
@@ -33,7 +30,8 @@ async function fetchRoomsFromBackend() {
       throw new Error("Failed to fetch rooms from server.");
     }
 
-    roomsData = await response.json();
+    const data = await response.json();
+    roomsData = data.rooms ? data.rooms : data;
     applyFilters();
   } catch (error) {
     console.error("API Error:", error);
@@ -123,17 +121,27 @@ quickAreaPills.forEach((pill) => {
 // ============================================
 const addRoomModal = document.getElementById("addRoomModal");
 const loginModal = document.getElementById("loginModal");
+const signupModal = document.getElementById("signupModal");
 const directionsModal = document.getElementById("directionsModal");
 
 document.getElementById("openAddRoomBtn").addEventListener("click", () => addRoomModal.classList.remove("hidden"));
 document.getElementById("closeAddRoomBtn").addEventListener("click", () => addRoomModal.classList.add("hidden"));
 document.getElementById("openLoginBtn").addEventListener("click", () => loginModal.classList.remove("hidden"));
 document.getElementById("closeLoginBtn").addEventListener("click", () => loginModal.classList.add("hidden"));
+document.getElementById("closeSignupBtn").addEventListener("click", () => signupModal.classList.add("hidden"));
 document.getElementById("openDirectionsBtn").addEventListener("click", () => directionsModal.classList.remove("hidden"));
 document.getElementById("closeDirectionsBtn").addEventListener("click", () => directionsModal.classList.add("hidden"));
+
 document.getElementById("openSignupBtn").addEventListener("click", (event) => {
   event.preventDefault();
-  alert("Redirecting to Signup Page... (Functionality to be added)");
+  loginModal.classList.add("hidden");
+  signupModal.classList.remove("hidden");
+});
+
+document.getElementById("backToLoginBtn").addEventListener("click", (event) => {
+  event.preventDefault();
+  signupModal.classList.add("hidden");
+  loginModal.classList.remove("hidden");
 });
 
 // ============================================
@@ -203,7 +211,7 @@ async function geocodeDestination(query) {
   const url = `${API_URL}/geocode?q=${encodeURIComponent(query)}`;
   const response = await fetch(url);
   const data = await response.json();
-  if (!response.ok) throw new Error(data.error || "Could not find that location.");
+  if (!response.ok) throw new Error(data.error || data.message || "Could not find that location.");
   return data;
 }
 
@@ -216,7 +224,7 @@ async function fetchRoute({ from, to, mode }) {
     `&mode=${encodeURIComponent(mode)}`;
   const response = await fetch(url);
   const data = await response.json();
-  if (!response.ok) throw new Error(data.error || "Could not calculate route.");
+  if (!response.ok) throw new Error(data.error || data.message || "Could not calculate route.");
   return data;
 }
 
@@ -328,9 +336,11 @@ addRoomForm.addEventListener("submit", async (event) => {
   const name = document.getElementById("roomNameInput").value.trim();
   const price = document.getElementById("roomPriceInput").value.trim();
   const area = document.getElementById("roomAreaInput").value;
+  const ownerContact = document.getElementById("roomOwnerContactInput").value.trim();
+  const messAvailable = document.getElementById("roomMessAvailableInput").checked;
   const image = document.getElementById("roomImageInput").value.trim();
 
-  if (!name || !price || !area) {
+  if (!name || !price || !area || !ownerContact) {
     formErrorText.innerText = "Please fill in all required fields.";
     formErrorText.classList.remove("hidden");
     return;
@@ -348,13 +358,13 @@ addRoomForm.addEventListener("submit", async (event) => {
     const response = await fetch(`${API_URL}/rooms`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, price, area, image }),
+      body: JSON.stringify({ name, price: Number(price), location: area, ownerContact, messAvailable, image }), // Use location explicitly
     });
 
     const data = await response.json();
 
     if (!response.ok) {
-      throw new Error(data.error || "Failed to add room to server.");
+      throw new Error(data.message || data.error || "Failed to add room to server.");
     }
 
     alert(data.message);
@@ -372,15 +382,16 @@ addRoomForm.addEventListener("submit", async (event) => {
 // LOGIN
 // ============================================
 const loginForm = document.getElementById("loginForm");
+const loginError = document.getElementById("loginError");
 
 loginForm.addEventListener("submit", async (event) => {
   event.preventDefault();
-
-  const inputs = loginForm.querySelectorAll("input");
-  const email = inputs[0].value;
-  const password = inputs[1].value;
+  
+  const email = document.getElementById("loginEmail").value.trim();
+  const password = document.getElementById("loginPassword").value.trim();
 
   try {
+    loginError.classList.add("hidden");
     const response = await fetch(`${API_URL}/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -390,14 +401,60 @@ loginForm.addEventListener("submit", async (event) => {
     const data = await response.json();
 
     if (!response.ok) {
-      throw new Error(data.error);
+      throw new Error(data.message || data.error || "Login failed.");
     }
 
     alert(data.message);
     loginModal.classList.add("hidden");
     loginForm.reset();
   } catch (error) {
-    alert("Error logging in: " + error.message);
+    loginError.textContent = error.message;
+    loginError.classList.remove("hidden");
+  }
+});
+
+// ============================================
+// SIGNUP
+// ============================================
+const signupForm = document.getElementById("signupForm");
+const signupError = document.getElementById("signupError");
+
+signupForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  
+  const email = document.getElementById("signupEmail").value.trim();
+  const password = document.getElementById("signupPassword").value.trim();
+
+  // Basic validate password length
+  if (password.length < 6) {
+    signupError.textContent = "Password must be at least 6 characters long.";
+    signupError.classList.remove("hidden");
+    return;
+  }
+
+  try {
+    signupError.classList.add("hidden");
+    const response = await fetch(`${API_URL}/signup`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || data.error || "Signup failed.");
+    }
+
+    alert(data.message);
+    signupModal.classList.add("hidden");
+    signupForm.reset();
+    
+    // Open login modal after successful signup
+    loginModal.classList.remove("hidden");
+  } catch (error) {
+    signupError.textContent = error.message;
+    signupError.classList.remove("hidden");
   }
 });
 

@@ -1,23 +1,26 @@
 {
   "name": "room-finder-backend",
   "version": "1.0.0",
-  "description": "",
+  "description": "Production-ready backend for RoomSathi – Nagpur Room Finder",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "check": "node --check server.js",
-    "test": "node --check server.js"
+    "dev": "nodemon server.js",
+    "check": "node --check server.js"
   },
-  "keywords": [],
+  "keywords": ["roomsathi", "nagpur", "room-finder", "backend"],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
-    "cors": "^2.8.6",
-    "dotenv": "^17.4.2",
-    "express": "^5.2.1",
-    "mongodb": "^7.2.0",
-    "mongoose": "^9.5.0",
-    "multer": "^2.1.1"
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "mongodb": "^6.8.0",
+    "mongoose": "^8.4.1",
+    "multer": "^1.4.5-lts.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.4"
   }
 }
