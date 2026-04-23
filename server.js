@@ -5,9 +5,11 @@ const path = require('path');
 const mongoose = require('mongoose');
 
 const app = express();
+const PORT = Number(process.env.PORT) || 3000;
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/roomsathi';
 
 // Connect to MongoDB
-mongoose.connect('mongodb://127.0.0.1:27017/roomsathi')
+mongoose.connect(MONGODB_URI)
   .then(() => console.log('Connected to MongoDB successfully!'))
   .catch((err) => console.error('MongoDB connection error:', err));
 
@@ -66,6 +68,18 @@ const roomSchema = new mongoose.Schema({
 
 const Room = mongoose.model('Room', roomSchema);
 
+function getRoomArea(source = {}) {
+  return String(source.area || source.location || '').trim();
+}
+
+function serializeRoom(room) {
+  const plain = room.toObject ? room.toObject() : room;
+  return {
+    ...plain,
+    location: plain.area,
+  };
+}
+
 // ============================================
 // INITIAL DUMMY DATA SEEDING (Optional)
 // ============================================
@@ -86,6 +100,15 @@ Room.countDocuments({}).then(count => {
 // ============================================
 // API ROUTES
 // ============================================
+
+app.get('/health', (_req, res) => {
+  res.json({
+    ok: true,
+    service: 'roomsathi-legacy-backend',
+    port: PORT,
+    mongoState: mongoose.connection.readyState,
+  });
+});
 
 // 0. GET /geocode?q=... -> Convert destination text into lat/lng
 app.get("/geocode", async (req, res) => {
@@ -157,17 +180,48 @@ app.get("/route", async (req, res) => {
 // 1. GET /rooms -> Respond with the list of rooms
 app.get('/rooms', async (req, res) => {
   try {
-    const rooms = await Room.find();
-    res.json(rooms);
+    const area = getRoomArea(req.query);
+    const query = area ? { area: new RegExp(`^${area}$`, 'i') } : {};
+    const rooms = await Room.find(query);
+    res.json(rooms.map(serializeRoom));
   } catch (error) {
     res.status(500).json({ error: "Server error while fetching rooms." });
+  }
+});
+
+app.get('/rooms/:id', async (req, res) => {
+  try {
+    const numericId = Number(req.params.id);
+    const orConditions = [];
+
+    if (mongoose.Types.ObjectId.isValid(req.params.id)) {
+      orConditions.push({ _id: req.params.id });
+    }
+    if (Number.isFinite(numericId)) {
+      orConditions.push({ id: numericId });
+    }
+
+    if (orConditions.length === 0) {
+      return res.status(400).json({ error: 'Invalid room id.' });
+    }
+
+    const room = await Room.findOne({ $or: orConditions });
+
+    if (!room) {
+      return res.status(404).json({ error: 'Room not found.' });
+    }
+
+    res.json(serializeRoom(room));
+  } catch (error) {
+    res.status(500).json({ error: 'Server error while fetching room.' });
   }
 });
 
 // 2. POST /rooms -> Add a new room from the frontend form
 app.post('/rooms', async (req, res) => {
   try {
-    const { name, price, area, image } = req.body;
+    const { name, price, image } = req.body;
+    const area = getRoomArea(req.body);
 
     // Backend Validation
     if (!name || !price || !area) {
@@ -234,7 +288,6 @@ app.post('/signup', (req, res) => {
 });
 
 // Start Server
-const PORT = 3000;
 app.listen(PORT, () => {
   console.log(`Backend Server running on http://localhost:${PORT}`);
 });

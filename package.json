@@ -4,7 +4,9 @@
   "description": "Backend for RoomSathi Nagpur Room Finder",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "check": "node --check server.js",
+    "test:db": "node test-db.js"
   },
   "dependencies": {
     "cors": "^2.8.5",

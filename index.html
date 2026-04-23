@@ -5,19 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>RoomSathi - Nagpur Room Finder</title>
   <link rel="icon" type="image/jpeg" href="logo.jpeg">
-  <!-- Link to our CSS file -->
   <link rel="stylesheet" href="style.css">
-  <!-- Leaflet (OpenStreetMap) -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-  <!-- Google Fonts for modern text -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <!-- Lucide icons for easy icons (like a font, but for icons) -->
   <script src="https://unpkg.com/lucide@latest"></script>
 </head>
 <body>
-  <!-- ===============================
-       1. NAVBAR (Top menu)
-  ================================ -->
   <nav class="navbar">
     <div class="nav-container">
       <div class="logo">
@@ -32,18 +25,14 @@
     </div>
   </nav>
 
-  <!-- ===============================
-       2. HERO SECTION (Blue gradient area)
-  ================================ -->
   <header class="hero">
     <div class="badge-pill">
       <i data-lucide="sparkles"></i> 16 hand-picked rooms in Nagpur
     </div>
-    
+
     <h1>Sleep well.<br>Wander further.</h1>
-    <p>Discover premium rooms with soul — from quiet corners in Sadar to bustling streets of Manish Nagar.</p>
-    
-    <!-- Area Dropdown mimicking the search bar -->
+    <p>Discover premium rooms with soul - from quiet corners in Sadar to bustling streets of Manish Nagar.</p>
+
     <div class="search-bar">
       <i data-lucide="search" class="search-icon"></i>
       <select id="heroAreaSelect" class="search-input">
@@ -58,7 +47,6 @@
       </select>
     </div>
 
-    <!-- Quick select pills -->
     <div class="quick-links">
       <button class="pill" data-area="Dharampeth">Dharampeth</button>
       <button class="pill" data-area="Manish Nagar">Manish Nagar</button>
@@ -68,38 +56,29 @@
     </div>
   </header>
 
-  <!-- ===============================
-       3. MAIN CONTENT (Filters & Room Grid)
-  ================================ -->
   <main class="container">
     <div class="listing-header">
       <div class="header-titles">
         <h2 id="resultCount">16 stays found</h2>
         <p class="subtitle">Sorted by recommended</p>
       </div>
-      
-      <!-- Filters -->
+
       <div class="filters">
         <div class="filter-item">
           <i data-lucide="sliders-horizontal"></i>
-          <input type="number" id="priceFilter" placeholder="Max Price (₹)" class="price-input">
+          <input type="number" id="priceFilter" placeholder="Max Price (INR)" class="price-input">
         </div>
       </div>
     </div>
 
-    <!-- Room Cards Container -->
-    <div id="roomContainer" class="room-grid">
-      <!-- JavaScript will inject cards here -->
-    </div>
-    
-    <!-- Empty State Message -->
+    <div id="roomContainer" class="room-grid"></div>
+
     <div id="noResults" class="no-results hidden">
       <i data-lucide="search-x" class="empty-icon"></i>
       <h3>No rooms found</h3>
       <p>Try increasing your price limit or changing the area.</p>
     </div>
 
-    <!-- Map + Route Section (shown when user requests directions) -->
     <section id="mapSection" class="map-section hidden" aria-label="Map and route">
       <div class="map-topbar">
         <div>
@@ -112,11 +91,6 @@
     </section>
   </main>
 
-  <!-- ===============================
-       4. MODALS (Popups for Forms)
-  ================================ -->
-  
-  <!-- "Add Room" Modal -->
   <div id="addRoomModal" class="modal hidden">
     <div class="modal-content">
       <span class="close-btn" id="closeAddRoomBtn"><i data-lucide="x"></i></span>
@@ -127,7 +101,7 @@
           <input type="text" id="roomNameInput" placeholder="e.g. Cozy PG for Boys" required>
         </div>
         <div class="form-group">
-          <label>Price (₹ per month)</label>
+          <label>Price (INR per month)</label>
           <input type="number" id="roomPriceInput" placeholder="e.g. 5000" required>
         </div>
         <div class="form-group">
@@ -153,7 +127,6 @@
     </div>
   </div>
 
-  <!-- "Login" Modal (UI only) -->
   <div id="loginModal" class="modal hidden">
     <div class="modal-content">
       <span class="close-btn" id="closeLoginBtn"><i data-lucide="x"></i></span>
@@ -165,7 +138,7 @@
         </div>
         <div class="form-group">
           <label>Password</label>
-          <input type="password" placeholder="••••••••" required>
+          <input type="password" placeholder="********" required>
         </div>
         <button type="submit" class="btn-primary full-width">Login</button>
         <p class="form-footer">Don't have an account? <a href="#" id="openSignupBtn">Sign up</a></p>
@@ -173,7 +146,6 @@
     </div>
   </div>
 
-  <!-- "Directions" Modal (Google Maps + optimal route preview) -->
   <div id="directionsModal" class="modal hidden">
     <div class="modal-content">
       <span class="close-btn" id="closeDirectionsBtn"><i data-lucide="x"></i></span>
@@ -206,7 +178,6 @@
     </div>
   </div>
 
-  <!-- JS File link -->
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
   <script src="script.js"></script>
 </body>

@@ -1,18 +1,15 @@
 // ============================================
 // GLOBAL VARIABLES
 // ============================================
-// Our data will now be populated by the Backend API
 let roomsData = [];
-// API base URL (ensure your node backend is running on this port)
+
 const API_URL =
   window.location.protocol === "http:" || window.location.protocol === "https:"
     ? window.location.origin
     : "http://localhost:3000";
 
-// Initialize Lucide icons
 lucide.createIcons();
 
-// DOM TARGETS
 const roomContainer = document.getElementById("roomContainer");
 const resultCountText = document.getElementById("resultCount");
 const noResultsDiv = document.getElementById("noResults");
@@ -28,28 +25,25 @@ const routeMeta = document.getElementById("routeMeta");
 // ============================================
 async function fetchRoomsFromBackend() {
   try {
-    // Show loading state
     roomContainer.innerHTML = "<p>Loading rooms from Nagpur...</p>";
-    
+
     const response = await fetch(`${API_URL}/rooms`);
-    
+
     if (!response.ok) {
       throw new Error("Failed to fetch rooms from server.");
     }
-    
-    // Parse JSON
+
     roomsData = await response.json();
-    
-    // Once data is fetched, apply any existing filters safely
     applyFilters();
   } catch (error) {
     console.error("API Error:", error);
-    roomContainer.innerHTML = `<p class="error-text">⚠️ Could not connect to backend server. Make sure it is running!</p>`;
+    roomContainer.innerHTML =
+      '<p class="error-text">Could not connect to the backend server. Make sure it is running.</p>';
   }
 }
 
 // ============================================
-// RENDER FUNCTION (Displaying HTML)
+// RENDER FUNCTION
 // ============================================
 function renderRooms(rooms) {
   roomContainer.innerHTML = "";
@@ -61,7 +55,8 @@ function renderRooms(rooms) {
     noResultsDiv.classList.add("hidden");
   }
 
-  rooms.forEach(room => {
+  rooms.forEach((room) => {
+    const area = room.area || room.location || "Nagpur";
     const cardHTML = `
       <div class="card">
         <div class="card-image-wrap">
@@ -72,7 +67,7 @@ function renderRooms(rooms) {
           <div class="card-badge badge-top-right"><i data-lucide="heart"></i></div>
           <div class="image-content">
             <h3>${room.name}</h3>
-            <p><i data-lucide="map-pin" style="width:14px;height:14px;"></i> ${room.area}, Nagpur</p>
+            <p><i data-lucide="map-pin" style="width:14px;height:14px;"></i> ${area}, Nagpur</p>
           </div>
         </div>
         <div class="card-body">
@@ -83,7 +78,7 @@ function renderRooms(rooms) {
           </div>
           <div class="price-section">
             <span class="price-label">from</span>
-            <div class="price-val">₹${room.price} <span class="price-unit">/month</span></div>
+            <div class="price-val">INR ${room.price} <span class="price-unit">/month</span></div>
           </div>
         </div>
         <div class="card-footer">
@@ -104,8 +99,9 @@ function applyFilters() {
   const selectedArea = heroAreaSelect.value;
   const maxPrice = priceFilterInput.value ? Number(priceFilterInput.value) : Infinity;
 
-  const filteredRooms = roomsData.filter(room => {
-    const matchesArea = selectedArea === "all" || room.area === selectedArea;
+  const filteredRooms = roomsData.filter((room) => {
+    const area = room.area || room.location;
+    const matchesArea = selectedArea === "all" || area === selectedArea;
     const matchesPrice = room.price <= maxPrice;
     return matchesArea && matchesPrice;
   });
@@ -113,10 +109,9 @@ function applyFilters() {
   renderRooms(filteredRooms);
 }
 
-// Event listeners for filters
 heroAreaSelect.addEventListener("change", applyFilters);
 priceFilterInput.addEventListener("input", applyFilters);
-quickAreaPills.forEach(pill => {
+quickAreaPills.forEach((pill) => {
   pill.addEventListener("click", () => {
     heroAreaSelect.value = pill.getAttribute("data-area");
     applyFilters();
@@ -124,7 +119,7 @@ quickAreaPills.forEach(pill => {
 });
 
 // ============================================
-// MODAL (POPUP) UI LOGIC
+// MODAL UI LOGIC
 // ============================================
 const addRoomModal = document.getElementById("addRoomModal");
 const loginModal = document.getElementById("loginModal");
@@ -136,13 +131,13 @@ document.getElementById("openLoginBtn").addEventListener("click", () => loginMod
 document.getElementById("closeLoginBtn").addEventListener("click", () => loginModal.classList.add("hidden"));
 document.getElementById("openDirectionsBtn").addEventListener("click", () => directionsModal.classList.remove("hidden"));
 document.getElementById("closeDirectionsBtn").addEventListener("click", () => directionsModal.classList.add("hidden"));
-document.getElementById("openSignupBtn").addEventListener("click", (e) => {
-  e.preventDefault();
+document.getElementById("openSignupBtn").addEventListener("click", (event) => {
+  event.preventDefault();
   alert("Redirecting to Signup Page... (Functionality to be added)");
 });
 
 // ============================================
-// MAP + DIRECTIONS (Leaflet + Google Maps)
+// MAP + DIRECTIONS
 // ============================================
 let mapInstance = null;
 let routeLine = null;
@@ -166,7 +161,6 @@ function ensureMap(center = { lat: 21.1458, lng: 79.0882 }) {
     mapInstance.setView([center.lat, center.lng], 12);
   }
 
-  // If map was created while hidden, make sure it lays out correctly once shown.
   setTimeout(() => mapInstance && mapInstance.invalidateSize(), 50);
   return mapInstance;
 }
@@ -186,16 +180,19 @@ function formatDuration(seconds) {
   if (!Number.isFinite(seconds)) return "";
   const mins = Math.round(seconds / 60);
   if (mins < 60) return `${mins} min`;
-  const h = Math.floor(mins / 60);
-  const m = mins % 60;
-  return `${h} h ${m} min`;
+  const hours = Math.floor(mins / 60);
+  const remainingMinutes = mins % 60;
+  return `${hours} h ${remainingMinutes} min`;
 }
 
 function getCurrentPosition() {
   return new Promise((resolve, reject) => {
-    if (!navigator.geolocation) return reject(new Error("Geolocation is not supported in this browser."));
+    if (!navigator.geolocation) {
+      return reject(new Error("Geolocation is not supported in this browser."));
+    }
+
     navigator.geolocation.getCurrentPosition(
-      (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      (position) => resolve({ lat: position.coords.latitude, lng: position.coords.longitude }),
       () => reject(new Error("Location permission denied. Please allow location access and try again.")),
       { enableHighAccuracy: true, timeout: 10000 }
     );
@@ -204,10 +201,10 @@ function getCurrentPosition() {
 
 async function geocodeDestination(query) {
   const url = `${API_URL}/geocode?q=${encodeURIComponent(query)}`;
-  const res = await fetch(url);
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "Could not find that location.");
-  return data; // { lat, lng, displayName }
+  const response = await fetch(url);
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || "Could not find that location.");
+  return data;
 }
 
 async function fetchRoute({ from, to, mode }) {
@@ -217,35 +214,34 @@ async function fetchRoute({ from, to, mode }) {
     `&toLat=${encodeURIComponent(to.lat)}` +
     `&toLng=${encodeURIComponent(to.lng)}` +
     `&mode=${encodeURIComponent(mode)}`;
-  const res = await fetch(url);
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "Could not calculate route.");
-  return data; // { distanceMeters, durationSeconds, geometry }
+  const response = await fetch(url);
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || "Could not calculate route.");
+  return data;
 }
 
 function drawRoute({ from, to, route, destinationLabel }) {
   mapSection.classList.remove("hidden");
-  const m = ensureMap(from);
-  if (!m) return;
+  const map = ensureMap(from);
+  if (!map) return;
 
   if (routeLine) routeLine.remove();
   if (fromMarker) fromMarker.remove();
   if (toMarker) toMarker.remove();
 
   const latlngs = route.geometry.coordinates.map(([lng, lat]) => [lat, lng]);
-  routeLine = L.polyline(latlngs, { color: "#5b7fff", weight: 5, opacity: 0.9 }).addTo(m);
-  fromMarker = L.marker([from.lat, from.lng]).addTo(m).bindPopup("You are here");
-  toMarker = L.marker([to.lat, to.lng]).addTo(m).bindPopup(destinationLabel || "Destination");
+  routeLine = L.polyline(latlngs, { color: "#5b7fff", weight: 5, opacity: 0.9 }).addTo(map);
+  fromMarker = L.marker([from.lat, from.lng]).addTo(map).bindPopup("You are here");
+  toMarker = L.marker([to.lat, to.lng]).addTo(map).bindPopup(destinationLabel || "Destination");
 
-  m.fitBounds(routeLine.getBounds(), { padding: [30, 30] });
+  map.fitBounds(routeLine.getBounds(), { padding: [30, 30] });
 
   const distance = formatDistance(route.distanceMeters);
   const duration = formatDuration(route.durationSeconds);
-  setRouteMeta(`Best route to ${destinationLabel || "destination"} • ${distance} • ${duration}`);
+  setRouteMeta(`Best route to ${destinationLabel || "destination"} | ${distance} | ${duration}`);
 }
 
 function openGoogleMapsDirections(from, to, mode) {
-  // Google Maps chooses an optimal route; no API key needed for this link.
   const travelMode =
     mode === "walking" ? "walking" : mode === "cycling" ? "bicycling" : "driving";
   const url =
@@ -261,9 +257,9 @@ const destinationInput = document.getElementById("destinationInput");
 const travelModeSelect = document.getElementById("travelModeSelect");
 const directionsError = document.getElementById("directionsError");
 
-function showDirectionsError(msg) {
+function showDirectionsError(message) {
   if (!directionsError) return;
-  directionsError.innerText = msg;
+  directionsError.innerText = message;
   directionsError.classList.remove("hidden");
 }
 
@@ -284,8 +280,8 @@ async function resolveAndRoute({ openInGoogleMaps }) {
     const from = await getCurrentPosition();
 
     setRouteMeta("Finding destination...");
-    const dest = await geocodeDestination(destinationQuery);
-    const to = { lat: dest.lat, lng: dest.lng };
+    const destination = await geocodeDestination(destinationQuery);
+    const to = { lat: destination.lat, lng: destination.lng };
 
     if (openInGoogleMaps) {
       openGoogleMapsDirections(from, to, mode);
@@ -297,17 +293,17 @@ async function resolveAndRoute({ openInGoogleMaps }) {
     const route = await fetchRoute({ from, to, mode });
 
     directionsModal.classList.add("hidden");
-    drawRoute({ from, to, route, destinationLabel: dest.displayName || destinationQuery });
-  } catch (err) {
-    const message = err?.message || "Something went wrong while getting directions.";
+    drawRoute({ from, to, route, destinationLabel: destination.displayName || destinationQuery });
+  } catch (error) {
+    const message = error?.message || "Something went wrong while getting directions.";
     showDirectionsError(message);
     setRouteMeta("Enter a destination to see the best route.");
   }
 }
 
 if (directionsForm) {
-  directionsForm.addEventListener("submit", (e) => {
-    e.preventDefault();
+  directionsForm.addEventListener("submit", (event) => {
+    event.preventDefault();
     resolveAndRoute({ openInGoogleMaps: false });
   });
 }
@@ -321,25 +317,25 @@ document.getElementById("hideMapBtn")?.addEventListener("click", () => {
 });
 
 // ============================================
-// API: POST - ADD ROOM VALIDATION & LOGIC
+// ADD ROOM
 // ============================================
 const addRoomForm = document.getElementById("addRoomForm");
 const formErrorText = document.getElementById("formError");
 
-addRoomForm.addEventListener("submit", async (e) => {
-  e.preventDefault();
+addRoomForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
 
   const name = document.getElementById("roomNameInput").value.trim();
   const price = document.getElementById("roomPriceInput").value.trim();
   const area = document.getElementById("roomAreaInput").value;
   const image = document.getElementById("roomImageInput").value.trim();
 
-  // Frontend Validation
   if (!name || !price || !area) {
     formErrorText.innerText = "Please fill in all required fields.";
     formErrorText.classList.remove("hidden");
     return;
   }
+
   if (isNaN(price) || Number(price) <= 0) {
     formErrorText.innerText = "Please enter a valid positive price.";
     formErrorText.classList.remove("hidden");
@@ -348,12 +344,11 @@ addRoomForm.addEventListener("submit", async (e) => {
 
   formErrorText.classList.add("hidden");
 
-  // Send Data to Backend
   try {
     const response = await fetch(`${API_URL}/rooms`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, price, area, image })
+      body: JSON.stringify({ name, price, area, image }),
     });
 
     const data = await response.json();
@@ -363,14 +358,9 @@ addRoomForm.addEventListener("submit", async (e) => {
     }
 
     alert(data.message);
-    
-    // Close Modal and clear form
     addRoomModal.classList.add("hidden");
     addRoomForm.reset();
-
-    // Re-fetch rooms from server to ensure data is perfectly in sync
     fetchRoomsFromBackend();
-
   } catch (error) {
     console.error("Submit Error:", error);
     formErrorText.innerText = "Error: " + error.message;
@@ -379,14 +369,13 @@ addRoomForm.addEventListener("submit", async (e) => {
 });
 
 // ============================================
-// API: POST - LOGIN LOGIC
+// LOGIN
 // ============================================
 const loginForm = document.getElementById("loginForm");
-loginForm.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  
-  // Quick hack: because our HTML button says "Login" but it's type="button", we need to change it to type="submit" in HTML. 
-  // Let's assume the user typed an email and password
+
+loginForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+
   const inputs = loginForm.querySelectorAll("input");
   const email = inputs[0].value;
   const password = inputs[1].value;
@@ -395,7 +384,7 @@ loginForm.addEventListener("submit", async (e) => {
     const response = await fetch(`${API_URL}/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password })
+      body: JSON.stringify({ email, password }),
     });
 
     const data = await response.json();
@@ -412,5 +401,4 @@ loginForm.addEventListener("submit", async (e) => {
   }
 });
 
-// Boot up the application by fetching Data!
 fetchRoomsFromBackend();
