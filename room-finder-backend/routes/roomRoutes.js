@@ -1,27 +1,22 @@
 const express = require("express");
 const router = express.Router();
+const roomController = require("../controllers/roomController");
+const authController = require("../controllers/authController");
+const upload = require("../middleware/upload");
 
-const {
-  getAllRooms,
-  getRoomById,
-  createRoom,
-  updateRoom,
-  deleteRoom,
-} = require("../controllers/roomController");
+// PUBLIC ROUTES
+router.get("/", roomController.getAllRooms);
+router.get("/recommended", roomController.getRecommendedRooms);
+router.get("/:id", roomController.getRoomById);
 
-// GET  /rooms            → list all rooms (with optional filters)
-router.get("/", getAllRooms);
+// PROTECTED ROUTES (Admin or Logged in user)
+router.use(authController.protect);
 
-// GET  /rooms/:id        → get one room by MongoDB ObjectId
-router.get("/:id", getRoomById);
+router.post("/upload", upload.array("images", 5), roomController.uploadRoomImages);
+router.post("/:id/book", roomController.bookRoom);
 
-// POST /rooms            → create a new room
-router.post("/", createRoom);
-
-// PUT  /rooms/:id        → update an existing room
-router.put("/:id", updateRoom);
-
-// DELETE /rooms/:id      → remove a room
-router.delete("/:id", deleteRoom);
+router.post("/", roomController.createRoom);
+router.put("/:id", roomController.updateRoom);
+router.delete("/:id", roomController.deleteRoom);
 
 module.exports = router;

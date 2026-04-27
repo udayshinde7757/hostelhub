@@ -5,6 +5,12 @@
   "scripts": {
     "start": "cd room-finder-backend && npm start",
     "dev": "cd room-finder-backend && npm run dev",
-    "install-all": "cd room-finder-backend && npm install"
+    "install-all": "cd room-finder-backend && npm install",
+    "seed": "cd room-finder-backend && node seed.js",
+    "frontend": "serve -s . -l 3000"
+  },
+
+  "devDependencies": {
+    "serve": "^14.2.6"
   }
 }

@@ -6,7 +6,6 @@
   <title>RoomSathi - Nagpur Room Finder</title>
   <link rel="icon" type="image/jpeg" href="logo.jpeg">
   <link rel="stylesheet" href="style.css">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://unpkg.com/lucide@latest"></script>
 </head>
@@ -57,11 +56,24 @@
   </header>
 
   <main class="container">
+    <section id="recommendedSection" class="recommended-section">
+      <div class="section-header">
+        <div class="header-titles">
+          <h2>⭐ Recommended for You</h2>
+          <p class="subtitle">AI-powered suggestions based on price, location, and rating</p>
+        </div>
+      </div>
+      <div id="recommendedContainer" class="room-grid recommended-grid">
+        <!-- Recommended rooms will be injected here -->
+      </div>
+    </section>
+
     <div class="listing-header">
       <div class="header-titles">
-        <h2 id="resultCount">16 stays found</h2>
-        <p class="subtitle">Sorted by recommended</p>
+        <h2 id="resultCount">All stays in Nagpur</h2>
+        <p class="subtitle">Browse our complete collection</p>
       </div>
+
 
       <div class="filters">
         <div class="filter-item">
@@ -118,6 +130,10 @@
           </select>
         </div>
         <div class="form-group">
+          <label>Detailed Address</label>
+          <input type="text" id="roomAddressInput" placeholder="e.g. Plot 42, Main Road, Sadar" required>
+        </div>
+        <div class="form-group">
           <label>Owner Contact (Phone)</label>
           <input type="text" id="roomOwnerContactInput" placeholder="e.g. 9876543210" required>
         </div>
@@ -125,9 +141,19 @@
           <input type="checkbox" id="roomMessAvailableInput">
           <label for="roomMessAvailableInput" style="margin: 0;">Mess Available</label>
         </div>
+        <div class="form-group" style="display: flex; gap: 10px;">
+          <div style="flex: 1;">
+            <label>Total Rooms</label>
+            <input type="number" id="roomCountInput" placeholder="e.g. 10" required min="1" value="1">
+          </div>
+          <div style="flex: 1;">
+            <label>Available Rooms</label>
+            <input type="number" id="availableRoomsInput" placeholder="e.g. 5" required min="0" value="1">
+          </div>
+        </div>
         <div class="form-group">
-          <label>Image URL (Optional)</label>
-          <input type="text" id="roomImageInput" placeholder="Paste an image URL">
+          <label>Room Images (2-5 recommended)</label>
+          <input type="file" id="roomImagesInput" multiple accept="image/*" class="file-input">
         </div>
         <p id="formError" class="error-text hidden">Please fill in all required fields properly.</p>
         <button type="submit" class="btn-primary full-width">Add Room</button>
@@ -207,7 +233,8 @@
     </div>
   </div>
 
-  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <div id="toastContainer" class="toast-container"></div>
   <script src="script.js"></script>
 </body>
 </html>
+

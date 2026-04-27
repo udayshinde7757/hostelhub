@@ -1,485 +1,540 @@
 // ============================================
-// GLOBAL VARIABLES
+// CONFIGURATION & GLOBAL STATE
 // ============================================
-let roomsData = [];
+const CONFIG = {
+  // Replace this URL with your deployed backend URL (e.g. Render/Railway)
+  PRODUCTION_API_URL: 'https://roomsathi-api.onrender.com/api/v1',
+  
+  get API_URL() {
+    return (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || !window.location.hostname)
+      ? 'http://localhost:3001/api/v1'
+      : this.PRODUCTION_API_URL;
+  },
+  DEFAULT_CENTER: { lat: 21.1458, lng: 79.0882 }
+};
 
-const API_URL = "http://localhost:3001";
+let state = {
+  allRooms: [],
+  recommendedRooms: [],
+  token: localStorage.getItem('token') || null,
+  user: JSON.parse(localStorage.getItem('user')) || null,
+  currentLocation: null
+};
 
-lucide.createIcons();
-
-const roomContainer = document.getElementById("roomContainer");
-const resultCountText = document.getElementById("resultCount");
-const noResultsDiv = document.getElementById("noResults");
-const heroAreaSelect = document.getElementById("heroAreaSelect");
-const priceFilterInput = document.getElementById("priceFilter");
-const quickAreaPills = document.querySelectorAll(".pill");
-const mapSection = document.getElementById("mapSection");
-const mapDiv = document.getElementById("map");
-const routeMeta = document.getElementById("routeMeta");
+let map;
+let directionsService;
+let directionsRenderer;
 
 // ============================================
-// API: FETCH ROOMS FROM BACKEND
+// HELPERS
 // ============================================
-async function fetchRoomsFromBackend() {
-  try {
-    roomContainer.innerHTML = Array(6).fill(`
-      <div class="skeleton-card">
-        <div class="skeleton skeleton-img"></div>
-        <div class="skeleton skeleton-text-1"></div>
-        <div class="skeleton skeleton-text-2"></div>
-        <div class="skeleton skeleton-btn"></div>
-      </div>
-    `).join('');
+const debounce = (fn, delay) => {
+  let timeout;
+  return (...args) => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => fn(...args), delay);
+  };
+};
 
-    const response = await fetch(`${API_URL}/rooms`);
+function showToast(message, type = 'success') {
+  const container = document.getElementById('toastContainer');
+  if (!container) return;
+  const toast = document.createElement('div');
+  toast.className = `toast toast-${type}`;
+  toast.innerHTML = `
+    <i data-lucide="${type === 'success' ? 'check-circle' : 'alert-circle'}"></i>
+    <span>${message}</span>
+  `;
+  container.appendChild(toast);
+  lucide.createIcons();
 
-    if (!response.ok) {
-      throw new Error("Failed to fetch rooms from server.");
-    }
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    setTimeout(() => toast.remove(), 300);
+  }, 4000);
+}
 
-    const data = await response.json();
-    roomsData = data.rooms ? data.rooms : data;
-    applyFilters();
-  } catch (error) {
-    console.error("API Error:", error);
-    roomContainer.innerHTML =
-      '<div class="no-results"><i data-lucide="alert-circle" class="empty-icon" style="color: #ef4444;"></i><h3 style="color: #ef4444;">Connection Error</h3><p>Could not connect to the backend server. Make sure it is running.</p></div>';
-    lucide.createIcons();
-  }
+function renderSkeletons(containerId, count = 3) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  container.innerHTML = Array(count).fill(`
+    <div class="card skeleton-card">
+      <div class="skeleton skeleton-img"></div>
+      <div class="skeleton skeleton-text" style="width: 70%"></div>
+      <div class="skeleton skeleton-text" style="width: 40%"></div>
+    </div>
+  `).join('');
 }
 
 // ============================================
-// RENDER FUNCTION
+// API CALLS
 // ============================================
-function renderRooms(rooms) {
-  roomContainer.innerHTML = "";
-  resultCountText.innerText = `${rooms.length} stays found`;
+const api = {
+  async request(endpoint, method = 'GET', body = null, params = {}) {
+    const url = new URL(`${CONFIG.API_URL}${endpoint}`, window.location.origin);
+    Object.keys(params).forEach(key => {
+      if (params[key] !== undefined && params[key] !== null) {
+        url.searchParams.append(key, params[key]);
+      }
+    });
 
-  if (rooms.length === 0) {
-    noResultsDiv.classList.remove("hidden");
-  } else {
-    noResultsDiv.classList.add("hidden");
+    const options = {
+      method,
+      headers: {
+        'Authorization': state.token ? `Bearer ${state.token}` : ''
+      }
+    };
+
+    if (body) {
+      if (body instanceof FormData) {
+        options.body = body;
+        // Let the browser set the Content-Type with boundary for FormData
+      } else {
+        options.headers['Content-Type'] = 'application/json';
+        options.body = JSON.stringify(body);
+      }
+    }
+
+    try {
+      const response = await fetch(url, options);
+      
+      // Handle non-JSON responses (like empty bodies or HTML error pages)
+      const contentType = response.headers.get('content-type');
+      let data = {};
+      
+      if (contentType && contentType.includes('application/json')) {
+        data = await response.json();
+      } else {
+        // If not JSON, get text and check if it's empty
+        const text = await response.text();
+        if (text) data = { message: text };
+      }
+
+      if (!response.ok) {
+        throw new Error(data.message || `Server Error: ${response.status}`);
+      }
+
+      return data;
+    } catch (err) {
+      if (err.name === 'SyntaxError') {
+        throw new Error('Invalid response from server. Please try again.');
+      }
+      throw err;
+    }
+  },
+
+  get(endpoint, params) { return this.request(endpoint, 'GET', null, params); },
+  post(endpoint, body) { return this.request(endpoint, 'POST', body); }
+};
+
+
+// ============================================
+// RENDER FUNCTIONS
+// ============================================
+function getAmenityIcon(name) {
+  const icons = {
+    'Wifi': 'wifi',
+    'Water': 'droplets',
+    'Parking': 'car',
+    'AC': 'wind',
+    'Mess': 'utensils'
+  };
+  return icons[name] || 'check-circle';
+}
+
+function renderRooms(rooms, containerId) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  container.innerHTML = '';
+
+  if (!rooms || rooms.length === 0) {
+    container.innerHTML = '<div class="no-results"><h3>No rooms found</h3><p>Try adjusting your filters.</p></div>';
+    return;
   }
 
-  rooms.forEach((room) => {
-    const area = room.area || room.location || "Nagpur";
-    const cardHTML = `
-      <div class="card">
-        <div class="card-image-wrap">
-          <img src="${room.image}" alt="${room.name}" loading="lazy">
-          <div class="card-badge badge-top-left">
-            <i data-lucide="star" class="star-icon"></i> ${room.rating} (${room.reviews})
-          </div>
-          <div class="card-badge badge-top-right"><i data-lucide="heart"></i></div>
-          <div class="image-content">
-            <h3>${room.name}</h3>
-            <p><i data-lucide="map-pin" style="width:14px;height:14px;"></i> ${area}, Nagpur</p>
-          </div>
+  rooms.forEach(room => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    
+    // Fallback to old image if images array is empty
+    const roomImages = room.images && room.images.length > 0 ? room.images : (room.image ? [room.image] : ["https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800&q=80"]);
+    const isOccupied = room.availableRooms !== undefined && room.availableRooms <= 0;
+    const imagesJson = encodeURIComponent(JSON.stringify(roomImages));
+
+    card.innerHTML = `
+      <div class="card-image-wrap" id="slider-${room.id}">
+        <img src="${roomImages[0].startsWith('http') ? roomImages[0] : CONFIG.API_URL.replace('/api/v1', '') + roomImages[0]}" alt="${room.name}" loading="lazy" id="img-${room.id}" data-index="0">
+        ${roomImages.length > 1 ? `
+          <button class="slider-btn prev" onclick="changeImg('${room.id}', -1, '${imagesJson}')" type="button"><i data-lucide="chevron-left"></i></button>
+          <button class="slider-btn next" onclick="changeImg('${room.id}', 1, '${imagesJson}')" type="button"><i data-lucide="chevron-right"></i></button>
+        ` : ''}
+        <div class="card-badge badge-top-left">
+          <i data-lucide="star" class="star-icon"></i> ${Number(room.rating || 0).toFixed(1)} (${room.reviewsCount || 0})
         </div>
-        <div class="card-body">
-          <div class="amenities">
-            <div class="amenity-icon"><i data-lucide="wifi"></i></div>
-            <div class="amenity-icon"><i data-lucide="coffee"></i></div>
-            <div class="amenity-icon"><i data-lucide="wind"></i></div>
-          </div>
-          <div class="price-section">
-            <span class="price-label">from</span>
-            <div class="price-val">INR ${room.price} <span class="price-unit">/month</span></div>
-          </div>
-        </div>
-        <div class="card-footer">
-          <button class="btn-primary full-width">View Details</button>
+        ${isOccupied ? `<div class="card-badge badge-top-right occupied-badge">Fully Occupied</div>` : `<div class="card-badge badge-top-right available-badge">${room.availableRooms} Left</div>`}
+        <div class="image-content">
+          <h3>${room.name}</h3>
+          <p><i data-lucide="map-pin" style="width:14px;height:14px;"></i> ${room.location}, Nagpur</p>
         </div>
       </div>
+      <div class="card-body">
+        <div class="amenities">
+          ${(room.amenities || ["Wifi", "Water"]).slice(0, 3).map(a => `
+            <div class="amenity-icon" title="${a}"><i data-lucide="${getAmenityIcon(a)}"></i></div>
+          `).join('')}
+        </div>
+        <div class="price-section">
+          <span class="price-label">from</span>
+          <div class="price-val">INR ${room.price} <span class="price-unit">/mo</span></div>
+        </div>
+      </div>
+      <div class="card-footer" style="display: flex; gap: 8px;">
+        <button class="btn-primary full-width" ${isOccupied ? 'disabled' : ''} onclick="bookRoom('${room.id}', '${room.ownerContact}', '${room.name}')">Book / Contact</button>
+        <button class="btn-secondary full-width" onclick="showDirections('${room.id}')"><i data-lucide="navigation" style="width: 16px; height: 16px; margin-right: 4px;"></i>Map</button>
+      </div>
     `;
-    roomContainer.insertAdjacentHTML("beforeend", cardHTML);
+    container.appendChild(card);
   });
-
   lucide.createIcons();
 }
 
-// ============================================
-// FILTERING LOGIC
-// ============================================
-function applyFilters() {
-  const selectedArea = heroAreaSelect.value;
-  const maxPrice = priceFilterInput.value ? Number(priceFilterInput.value) : Infinity;
+window.changeImg = function(roomId, direction, imagesJson) {
+  event.stopPropagation();
+  const imgEl = document.getElementById('img-' + roomId);
+  const images = JSON.parse(decodeURIComponent(imagesJson));
+  let idx = parseInt(imgEl.getAttribute('data-index'), 10);
+  idx += direction;
+  if (idx < 0) idx = images.length - 1;
+  if (idx >= images.length) idx = 0;
+  imgEl.setAttribute('data-index', idx);
+  imgEl.src = images[idx].startsWith('http') ? images[idx] : CONFIG.API_URL.replace('/api/v1', '') + images[idx];
+};
 
-  const filteredRooms = roomsData.filter((room) => {
-    const area = room.area || room.location;
-    const matchesArea = selectedArea === "all" || area === selectedArea;
-    const matchesPrice = room.price <= maxPrice;
-    return matchesArea && matchesPrice;
-  });
-
-  renderRooms(filteredRooms);
-}
-
-let filterTimeout;
-function debouncedApplyFilters() {
-  clearTimeout(filterTimeout);
-  filterTimeout = setTimeout(applyFilters, 150);
-}
-
-heroAreaSelect.addEventListener("change", applyFilters);
-priceFilterInput.addEventListener("input", debouncedApplyFilters);
-quickAreaPills.forEach((pill) => {
-  pill.addEventListener("click", () => {
-    heroAreaSelect.value = pill.getAttribute("data-area");
-    applyFilters();
-  });
-});
-
-// ============================================
-// MODAL UI LOGIC
-// ============================================
-const addRoomModal = document.getElementById("addRoomModal");
-const loginModal = document.getElementById("loginModal");
-const signupModal = document.getElementById("signupModal");
-const directionsModal = document.getElementById("directionsModal");
-
-document.getElementById("openAddRoomBtn").addEventListener("click", () => addRoomModal.classList.remove("hidden"));
-document.getElementById("closeAddRoomBtn").addEventListener("click", () => addRoomModal.classList.add("hidden"));
-document.getElementById("openLoginBtn").addEventListener("click", () => loginModal.classList.remove("hidden"));
-document.getElementById("closeLoginBtn").addEventListener("click", () => loginModal.classList.add("hidden"));
-document.getElementById("closeSignupBtn").addEventListener("click", () => signupModal.classList.add("hidden"));
-document.getElementById("openDirectionsBtn").addEventListener("click", () => directionsModal.classList.remove("hidden"));
-document.getElementById("closeDirectionsBtn").addEventListener("click", () => directionsModal.classList.add("hidden"));
-
-document.getElementById("openSignupBtn").addEventListener("click", (event) => {
-  event.preventDefault();
-  loginModal.classList.add("hidden");
-  signupModal.classList.remove("hidden");
-});
-
-document.getElementById("backToLoginBtn").addEventListener("click", (event) => {
-  event.preventDefault();
-  signupModal.classList.add("hidden");
-  loginModal.classList.remove("hidden");
-});
-
-// ============================================
-// MAP + DIRECTIONS
-// ============================================
-let mapInstance = null;
-let routeLine = null;
-let fromMarker = null;
-let toMarker = null;
-
-function ensureMap(center = { lat: 21.1458, lng: 79.0882 }) {
-  if (!mapDiv) return null;
-  if (typeof L === "undefined") {
-    showDirectionsError("Map library failed to load (Leaflet). Please refresh and try again.");
-    return null;
+window.bookRoom = async function(roomId, ownerContact, roomName) {
+  if (!state.token) {
+    showToast("Please login to book a room.", "error");
+    document.getElementById('loginModal').classList.remove('hidden');
+    return;
   }
-
-  if (!mapInstance) {
-    mapInstance = L.map(mapDiv).setView([center.lat, center.lng], 12);
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      maxZoom: 19,
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-    }).addTo(mapInstance);
-  } else {
-    mapInstance.setView([center.lat, center.lng], 12);
+  
+  try {
+    const res = await api.post('/rooms/' + roomId + '/book', {});
+    showToast("Booking request successful!");
+    
+    // Reload rooms to update availability
+    loadAllRooms();
+    loadRecommended();
+    
+    // Open WhatsApp
+    const message = encodeURIComponent(`Hello, I am interested in your room "${roomName}" listed on RoomSathi. I would like to visit. Please let me know your available time.`);
+    window.open(`https://wa.me/${ownerContact}?text=${message}`, '_blank');
+  } catch (error) {
+    showToast(error.message || "Could not book room", "error");
   }
+};
 
-  setTimeout(() => mapInstance && mapInstance.invalidateSize(), 50);
-  return mapInstance;
+// ============================================
+// CORE ACTIONS
+// ============================================
+async function initApp() {
+  lucide.createIcons();
+  updateAuthUI();
+  await getUserLocation();
+  await loadGoogleMapsScript();
+  loadRecommended();
+  loadAllRooms();
 }
 
-function setRouteMeta(text) {
-  if (!routeMeta) return;
-  routeMeta.innerText = text;
-}
-
-function formatDistance(meters) {
-  if (!Number.isFinite(meters)) return "";
-  if (meters < 1000) return `${Math.round(meters)} m`;
-  return `${(meters / 1000).toFixed(1)} km`;
-}
-
-function formatDuration(seconds) {
-  if (!Number.isFinite(seconds)) return "";
-  const mins = Math.round(seconds / 60);
-  if (mins < 60) return `${mins} min`;
-  const hours = Math.floor(mins / 60);
-  const remainingMinutes = mins % 60;
-  return `${hours} h ${remainingMinutes} min`;
-}
-
-function getCurrentPosition() {
-  return new Promise((resolve, reject) => {
-    if (!navigator.geolocation) {
-      return reject(new Error("Geolocation is not supported in this browser."));
+async function loadGoogleMapsScript() {
+  try {
+    const res = await api.get('/maps/key');
+    const apiKey = res.data?.key;
+    if (!apiKey) {
+      console.warn("No Google Maps API key provided by backend.");
+      return;
     }
+    
+    return new Promise((resolve, reject) => {
+      if (window.google && window.google.maps) {
+        resolve();
+        return;
+      }
+      
+      const script = document.createElement('script');
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
+      script.async = true;
+      script.defer = true;
+      script.onload = () => {
+        directionsService = new google.maps.DirectionsService();
+        directionsRenderer = new google.maps.DirectionsRenderer();
+        resolve();
+      };
+      script.onerror = () => reject(new Error("Failed to load Google Maps script."));
+      document.head.appendChild(script);
+    });
+  } catch (error) {
+    console.error("Error loading Maps API Key", error);
+  }
+}
 
+window.showDirections = function(roomId) {
+  if (!window.google || !window.google.maps) {
+    showToast("Google Maps is not initialized.", "error");
+    return;
+  }
+  
+  const room = state.allRooms.find(r => r.id === roomId) || state.recommendedRooms.find(r => r.id === roomId);
+  if (!room) return;
+  
+  if (!room.coordinates || !room.coordinates.lat) {
+    showToast("This room does not have coordinates set.", "error");
+    return;
+  }
+
+  if (!state.currentLocation) {
+    showToast("Cannot get your current location.", "error");
+    return;
+  }
+
+  const mapSection = document.getElementById('mapSection');
+  if (mapSection) {
+    mapSection.classList.remove('hidden');
+    mapSection.scrollIntoView({ behavior: 'smooth' });
+  }
+  
+  if (!map) {
+    map = new google.maps.Map(document.getElementById('map'), {
+      zoom: 12,
+      center: state.currentLocation
+    });
+    directionsRenderer.setMap(map);
+  }
+
+  const origin = new google.maps.LatLng(state.currentLocation.lat, state.currentLocation.lng);
+  const destination = new google.maps.LatLng(room.coordinates.lat, room.coordinates.lng);
+
+  const request = {
+    origin: origin,
+    destination: destination,
+    travelMode: google.maps.TravelMode.DRIVING,
+    optimizeWaypoints: true
+  };
+
+  document.getElementById('routeMeta').innerHTML = 'Calculating route...';
+
+  directionsService.route(request, (response, status) => {
+    if (status === google.maps.DirectionsStatus.OK) {
+      directionsRenderer.setDirections(response);
+      const route = response.routes[0].legs[0];
+      document.getElementById('routeMeta').innerHTML = `Distance: <b>${route.distance.text}</b> | ETA: <b>${route.duration.text}</b>`;
+    } else {
+      showToast("Could not calculate directions.", "error");
+      document.getElementById('routeMeta').innerHTML = 'Error calculating route.';
+    }
+  });
+};
+
+async function getUserLocation() {
+  return new Promise((resolve) => {
+    if (!navigator.geolocation) {
+      state.currentLocation = CONFIG.DEFAULT_CENTER;
+      return resolve();
+    }
     navigator.geolocation.getCurrentPosition(
-      (position) => resolve({ lat: position.coords.latitude, lng: position.coords.longitude }),
-      () => reject(new Error("Location permission denied. Please allow location access and try again.")),
-      { enableHighAccuracy: true, timeout: 10000 }
+      (pos) => {
+        state.currentLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        resolve();
+      },
+      () => {
+        state.currentLocation = CONFIG.DEFAULT_CENTER;
+        resolve();
+      },
+      { timeout: 5000 }
     );
   });
 }
 
-async function geocodeDestination(query) {
-  const url = `${API_URL}/geocode?q=${encodeURIComponent(query)}`;
-  const response = await fetch(url);
-  const data = await response.json();
-  if (!response.ok) throw new Error(data.error || data.message || "Could not find that location.");
-  return data;
-}
-
-async function fetchRoute({ from, to, mode }) {
-  const url =
-    `${API_URL}/route?fromLat=${encodeURIComponent(from.lat)}` +
-    `&fromLng=${encodeURIComponent(from.lng)}` +
-    `&toLat=${encodeURIComponent(to.lat)}` +
-    `&toLng=${encodeURIComponent(to.lng)}` +
-    `&mode=${encodeURIComponent(mode)}`;
-  const response = await fetch(url);
-  const data = await response.json();
-  if (!response.ok) throw new Error(data.error || data.message || "Could not calculate route.");
-  return data;
-}
-
-function drawRoute({ from, to, route, destinationLabel }) {
-  mapSection.classList.remove("hidden");
-  const map = ensureMap(from);
-  if (!map) return;
-
-  if (routeLine) routeLine.remove();
-  if (fromMarker) fromMarker.remove();
-  if (toMarker) toMarker.remove();
-
-  const latlngs = route.geometry.coordinates.map(([lng, lat]) => [lat, lng]);
-  routeLine = L.polyline(latlngs, { color: "#5b7fff", weight: 5, opacity: 0.9 }).addTo(map);
-  fromMarker = L.marker([from.lat, from.lng]).addTo(map).bindPopup("You are here");
-  toMarker = L.marker([to.lat, to.lng]).addTo(map).bindPopup(destinationLabel || "Destination");
-
-  map.fitBounds(routeLine.getBounds(), { padding: [30, 30] });
-
-  const distance = formatDistance(route.distanceMeters);
-  const duration = formatDuration(route.durationSeconds);
-  setRouteMeta(`Best route to ${destinationLabel || "destination"} | ${distance} | ${duration}`);
-}
-
-function openGoogleMapsDirections(from, to, mode) {
-  const travelMode =
-    mode === "walking" ? "walking" : mode === "cycling" ? "bicycling" : "driving";
-  const url =
-    "https://www.google.com/maps/dir/?api=1" +
-    `&origin=${encodeURIComponent(`${from.lat},${from.lng}`)}` +
-    `&destination=${encodeURIComponent(`${to.lat},${to.lng}`)}` +
-    `&travelmode=${encodeURIComponent(travelMode)}`;
-  window.open(url, "_blank", "noopener,noreferrer");
-}
-
-const directionsForm = document.getElementById("directionsForm");
-const destinationInput = document.getElementById("destinationInput");
-const travelModeSelect = document.getElementById("travelModeSelect");
-const directionsError = document.getElementById("directionsError");
-
-function showDirectionsError(message) {
-  if (!directionsError) return;
-  directionsError.innerText = message;
-  directionsError.classList.remove("hidden");
-}
-
-function clearDirectionsError() {
-  if (!directionsError) return;
-  directionsError.innerText = "";
-  directionsError.classList.add("hidden");
-}
-
-async function resolveAndRoute({ openInGoogleMaps }) {
-  clearDirectionsError();
-  const destinationQuery = (destinationInput?.value || "").trim();
-  const mode = travelModeSelect?.value || "driving";
-  if (!destinationQuery) return showDirectionsError("Please enter a destination.");
-
+async function loadRecommended() {
   try {
-    setRouteMeta("Getting your location...");
-    const from = await getCurrentPosition();
-
-    setRouteMeta("Finding destination...");
-    const destination = await geocodeDestination(destinationQuery);
-    const to = { lat: destination.lat, lng: destination.lng };
-
-    if (openInGoogleMaps) {
-      openGoogleMapsDirections(from, to, mode);
-      directionsModal.classList.add("hidden");
-      return;
-    }
-
-    setRouteMeta("Calculating best route...");
-    const route = await fetchRoute({ from, to, mode });
-
-    directionsModal.classList.add("hidden");
-    drawRoute({ from, to, route, destinationLabel: destination.displayName || destinationQuery });
-  } catch (error) {
-    const message = error?.message || "Something went wrong while getting directions.";
-    showDirectionsError(message);
-    setRouteMeta("Enter a destination to see the best route.");
-  }
-}
-
-if (directionsForm) {
-  directionsForm.addEventListener("submit", (event) => {
-    event.preventDefault();
-    resolveAndRoute({ openInGoogleMaps: false });
-  });
-}
-
-document.getElementById("openGoogleMapsBtn")?.addEventListener("click", () => {
-  resolveAndRoute({ openInGoogleMaps: true });
-});
-
-document.getElementById("hideMapBtn")?.addEventListener("click", () => {
-  mapSection.classList.add("hidden");
-});
-
-// ============================================
-// ADD ROOM
-// ============================================
-const addRoomForm = document.getElementById("addRoomForm");
-const formErrorText = document.getElementById("formError");
-
-addRoomForm.addEventListener("submit", async (event) => {
-  event.preventDefault();
-
-  const name = document.getElementById("roomNameInput").value.trim();
-  const price = document.getElementById("roomPriceInput").value.trim();
-  const area = document.getElementById("roomAreaInput").value;
-  const ownerContact = document.getElementById("roomOwnerContactInput").value.trim();
-  const messAvailable = document.getElementById("roomMessAvailableInput").checked;
-  const image = document.getElementById("roomImageInput").value.trim();
-
-  if (!name || !price || !area || !ownerContact) {
-    formErrorText.innerText = "Please fill in all required fields.";
-    formErrorText.classList.remove("hidden");
-    return;
-  }
-
-  if (isNaN(price) || Number(price) <= 0) {
-    formErrorText.innerText = "Please enter a valid positive price.";
-    formErrorText.classList.remove("hidden");
-    return;
-  }
-
-  formErrorText.classList.add("hidden");
-  
-  const submitBtn = addRoomForm.querySelector("button[type='submit']");
-  const originalBtnText = submitBtn.innerText;
-  submitBtn.innerText = "Adding Room...";
-  submitBtn.disabled = true;
-  submitBtn.style.opacity = "0.7";
-
-  try {
-    const response = await fetch(`${API_URL}/rooms`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, price: Number(price), location: area, ownerContact, messAvailable, image }), // Use location explicitly
+    renderSkeletons('recommendedContainer', 3);
+    const res = await api.get('/rooms/recommended', { 
+      lat: state.currentLocation?.lat, 
+      lng: state.currentLocation?.lng 
     });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.message || data.error || "Failed to add room to server.");
-    }
-
-    alert(data.message);
-    addRoomModal.classList.add("hidden");
-    addRoomForm.reset();
-    fetchRoomsFromBackend();
-  } catch (error) {
-    console.error("Submit Error:", error);
-    formErrorText.innerText = "Error: " + error.message;
-    formErrorText.classList.remove("hidden");
-  } finally {
-    submitBtn.innerText = originalBtnText;
-    submitBtn.disabled = false;
-    submitBtn.style.opacity = "1";
+    state.recommendedRooms = res.data.rooms;
+    renderRooms(state.recommendedRooms, 'recommendedContainer');
+  } catch (err) {
+    console.error('Recommended Rooms Error:', err);
+    document.getElementById('recommendedSection').style.display = 'none';
   }
-});
+}
+
+async function loadAllRooms(filters = {}) {
+  try {
+    renderSkeletons('roomContainer', 6);
+    const res = await api.get('/rooms', filters);
+    state.allRooms = res.data.rooms;
+    renderRooms(state.allRooms, 'roomContainer');
+    document.getElementById('resultCount').innerText = `${res.total || state.allRooms.length} stays in Nagpur`;
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
 
 // ============================================
-// LOGIN
+// AUTH HANDLERS
 // ============================================
-const loginForm = document.getElementById("loginForm");
-const loginError = document.getElementById("loginError");
+function updateAuthUI() {
+  const loginBtn = document.getElementById('openLoginBtn');
+  if (state.token) {
+    loginBtn.innerHTML = '<i data-lucide="log-out" style="width:16px;height:16px"></i> Logout';
+    loginBtn.onclick = (e) => { e.preventDefault(); logout(); };
+  } else {
+    loginBtn.innerHTML = 'Login';
+    loginBtn.onclick = (e) => { e.preventDefault(); document.getElementById('loginModal').classList.remove('hidden'); };
+  }
+  lucide.createIcons();
+}
 
-loginForm.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  
-  const email = document.getElementById("loginEmail").value.trim();
-  const password = document.getElementById("loginPassword").value.trim();
+async function handleLogin(e) {
+  e.preventDefault();
+  const email = document.getElementById('loginEmail').value;
+  const password = document.getElementById('loginPassword').value;
 
   try {
-    loginError.classList.add("hidden");
-    const response = await fetch(`${API_URL}/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.message || data.error || "Login failed.");
-    }
-
-    alert(data.message);
-    loginModal.classList.add("hidden");
-    loginForm.reset();
-  } catch (error) {
-    loginError.textContent = error.message;
-    loginError.classList.remove("hidden");
-  }
-});
-
-// ============================================
-// SIGNUP
-// ============================================
-const signupForm = document.getElementById("signupForm");
-const signupError = document.getElementById("signupError");
-
-signupForm.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  
-  const email = document.getElementById("signupEmail").value.trim();
-  const password = document.getElementById("signupPassword").value.trim();
-
-  // Basic validate password length
-  if (password.length < 6) {
-    signupError.textContent = "Password must be at least 6 characters long.";
-    signupError.classList.remove("hidden");
-    return;
-  }
-
-  try {
-    signupError.classList.add("hidden");
-    const response = await fetch(`${API_URL}/signup`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.message || data.error || "Signup failed.");
-    }
-
-    alert(data.message);
-    signupModal.classList.add("hidden");
-    signupForm.reset();
+    const res = await api.post('/auth/login', { email, password });
+    state.token = res.token;
+    state.user = res.data.user;
+    localStorage.setItem('token', res.token);
+    localStorage.setItem('user', JSON.stringify(res.data.user));
     
-    // Open login modal after successful signup
-    loginModal.classList.remove("hidden");
-  } catch (error) {
-    signupError.textContent = error.message;
-    signupError.classList.remove("hidden");
+    showToast('Welcome back!');
+    document.getElementById('loginModal').classList.add('hidden');
+    updateAuthUI();
+  } catch (err) {
+    showToast(err.message, 'error');
   }
+}
+
+async function handleSignup(e) {
+  e.preventDefault();
+  const email = document.getElementById('signupEmail').value;
+  const password = document.getElementById('signupPassword').value;
+
+  try {
+    const res = await api.post('/auth/signup', { email, password });
+    state.token = res.token;
+    state.user = res.data.user;
+    localStorage.setItem('token', res.token);
+    localStorage.setItem('user', JSON.stringify(res.data.user));
+    
+    showToast('Account created successfully!');
+    document.getElementById('signupModal').classList.add('hidden');
+    updateAuthUI();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+function logout() {
+  state.token = null;
+  state.user = null;
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');
+  showToast('Logged out');
+  updateAuthUI();
+}
+
+// ============================================
+// ROOM ACTIONS
+// ============================================
+async function handleAddRoom(e) {
+  e.preventDefault();
+  if (!state.token) return showToast('Please login to add a room', 'error');
+
+  const fileInput = document.getElementById('roomImagesInput');
+  let uploadedImages = [];
+  
+  if (fileInput.files.length > 0) {
+    if (fileInput.files.length > 5) {
+      return showToast('Maximum 5 images allowed', 'error');
+    }
+    const formData = new FormData();
+    for (let i = 0; i < fileInput.files.length; i++) {
+      formData.append('images', fileInput.files[i]);
+    }
+    try {
+      const uploadRes = await api.post('/rooms/upload', formData);
+      uploadedImages = uploadRes.data.images;
+    } catch (err) {
+      return showToast('Failed to upload images: ' + err.message, 'error');
+    }
+  }
+
+  const roomData = {
+    name: document.getElementById('roomNameInput').value,
+    price: Number(document.getElementById('roomPriceInput').value),
+    location: document.getElementById('roomAreaInput').value,
+    address: document.getElementById('roomAddressInput').value,
+    ownerContact: document.getElementById('roomOwnerContactInput').value,
+    roomCount: Number(document.getElementById('roomCountInput').value),
+    availableRooms: Number(document.getElementById('availableRoomsInput').value),
+    messAvailable: document.getElementById('roomMessAvailableInput').checked,
+    images: uploadedImages
+  };
+
+  try {
+    await api.post('/rooms', roomData);
+    showToast('Room added successfully!');
+    document.getElementById('addRoomModal').classList.add('hidden');
+    document.getElementById('addRoomForm').reset();
+    loadAllRooms();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+// ============================================
+// EVENT LISTENERS INITIALIZATION
+// ============================================
+document.getElementById('loginForm')?.addEventListener('submit', handleLogin);
+document.getElementById('signupForm')?.addEventListener('submit', handleSignup);
+document.getElementById('addRoomForm')?.addEventListener('submit', handleAddRoom);
+
+document.getElementById('heroAreaSelect')?.addEventListener('change', (e) => {
+  loadAllRooms({ location: e.target.value === 'all' ? '' : e.target.value });
 });
 
-fetchRoomsFromBackend();
+document.getElementById('priceFilter')?.addEventListener('input', debounce((e) => {
+  loadAllRooms({ maxPrice: e.target.value });
+}, 400));
+
+// Navigation / UI
+document.getElementById('openAddRoomBtn')?.addEventListener('click', (e) => {
+  e.preventDefault();
+  if (!state.token) return showToast('Please login first', 'error');
+  document.getElementById('addRoomModal').classList.remove('hidden');
+});
+
+document.getElementById('openSignupBtn')?.addEventListener('click', (e) => {
+  e.preventDefault();
+  document.getElementById('loginModal').classList.add('hidden');
+  document.getElementById('signupModal').classList.remove('hidden');
+});
+
+document.getElementById('backToLoginBtn')?.addEventListener('click', (e) => {
+  e.preventDefault();
+  document.getElementById('signupModal').classList.add('hidden');
+  document.getElementById('loginModal').classList.remove('hidden');
+});
+
+document.querySelectorAll('.close-btn').forEach(btn => {
+  btn.onclick = () => btn.closest('.modal').classList.add('hidden');
+});
+
+document.getElementById('hideMapBtn')?.addEventListener('click', () => {
+  document.getElementById('mapSection').classList.add('hidden');
+});
+
+// Start the app
+initApp();

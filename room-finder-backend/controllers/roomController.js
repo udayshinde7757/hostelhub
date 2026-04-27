@@ -1,266 +1,219 @@
+const axios = require("axios");
 const Room = require("../models/Room");
 
 // ─────────────────────────────────────────────
-// Helper – pull location from query / body
-// Accepts both "location" and "area" so old
-// frontend code keeps working without changes.
+// Helper – Haversine distance formula (in km)
 // ─────────────────────────────────────────────
-function extractLocation(source = {}) {
-  return String(source.location || source.area || "").trim();
+function calculateDistance(lat1, lon1, lat2, lon2) {
+  if (!lat1 || !lon1 || !lat2 || !lon2) return 5; // Default 5km if missing
+  const R = 6371; // Radius of the earth in km
+  const dLat = (lat2 - lat1) * (Math.PI / 180);
+  const dLon = (lon2 - lon1) * (Math.PI / 180);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
 }
 
 // ─────────────────────────────────────────────
-// GET /rooms
-// Fetches all rooms. Supports optional filters:
-//   ?location=Nagpur
-//   ?area=Dharampeth
-//   ?minPrice=1000&maxPrice=5000
+// GET /rooms (with Pagination and Filtering)
 // ─────────────────────────────────────────────
-const getAllRooms = async (req, res, next) => {
+exports.getAllRooms = async (req, res, next) => {
   try {
+    const { page = 1, limit = 10, location, minPrice, maxPrice } = req.query;
     const query = {};
 
-    // Location / area filter
-    const location = extractLocation(req.query);
     if (location) {
-      // Case-insensitive exact match (anchors ^ and $)
       query.location = new RegExp(`^${location}$`, "i");
     }
 
-    // Price range filter
-    if (req.query.minPrice !== undefined || req.query.maxPrice !== undefined) {
+    if (minPrice || maxPrice) {
       query.price = {};
-      if (req.query.minPrice !== undefined) {
-        const min = Number(req.query.minPrice);
-        if (isNaN(min)) {
-          return res
-            .status(400)
-            .json({ success: false, message: "minPrice must be a number" });
-        }
-        query.price.$gte = min;
-      }
-      if (req.query.maxPrice !== undefined) {
-        const max = Number(req.query.maxPrice);
-        if (isNaN(max)) {
-          return res
-            .status(400)
-            .json({ success: false, message: "maxPrice must be a number" });
-        }
-        query.price.$lte = max;
-      }
+      if (minPrice) query.price.$gte = Number(minPrice);
+      if (maxPrice) query.price.$lte = Number(maxPrice);
     }
 
-    const rooms = await Room.find(query).sort({ createdAt: -1 });
+    const options = {
+      page: parseInt(page, 10),
+      limit: parseInt(limit, 10),
+      sort: { createdAt: -1 },
+    };
+
+    const result = await Room.paginate(query, options);
 
     res.json({
-      success: true,
-      count: rooms.length,
-      rooms,
+      status: "success",
+      results: result.docs.length,
+      total: result.totalDocs,
+      pages: result.totalPages,
+      currentPage: result.page,
+      data: {
+        rooms: result.docs,
+      },
     });
   } catch (error) {
-    next(error); // Pass to global error handler
+    res.status(500).json({ status: "error", message: error.message });
   }
 };
 
 // ─────────────────────────────────────────────
-// GET /rooms/:id
-// Fetch a single room by its MongoDB ObjectId
+// GET /rooms/recommended
+// Smart Recommendation Engine
 // ─────────────────────────────────────────────
-const getRoomById = async (req, res, next) => {
+exports.getRecommendedRooms = async (req, res, next) => {
+  try {
+    const { lat, lng } = req.query;
+    const userLat = lat ? Number(lat) : 21.1458; // Default Nagpur center
+    const userLng = lng ? Number(lng) : 79.0882;
+
+    const rooms = await Room.find();
+    
+    // Calculate max price for normalization
+    const maxPrice = Math.max(...rooms.map(r => r.price), 10000);
+
+    const scoredRooms = rooms.map(room => {
+      // 1. Distance Score (0.4)
+      const distance = calculateDistance(userLat, userLng, room.coordinates?.lat, room.coordinates?.lng);
+      const distanceScore = 1 / (1 + distance);
+
+      // 2. Price Score (0.3)
+      const priceScore = (maxPrice - room.price) / maxPrice;
+
+      // 3. Rating Score (0.2)
+      const ratingScore = (room.rating || 0) / 5;
+
+      // 4. Facility Score (0.1)
+      // Normalize based on number of amenities (max assumed 10)
+      const facilityScore = Math.min((room.amenities?.length || 0) / 5, 1);
+
+      // Final Weighted Score
+      const totalScore = (0.4 * distanceScore) + (0.3 * priceScore) + (0.2 * ratingScore) + (0.1 * facilityScore);
+
+      return {
+        ...room.toJSON(),
+        score: totalScore,
+        calculatedDistance: distance.toFixed(2)
+      };
+    });
+
+    // Sort by score descending and take top 6
+    const recommended = scoredRooms.sort((a, b) => b.score - a.score).slice(0, 6);
+
+    res.json({
+      status: "success",
+      data: {
+        rooms: recommended,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ status: "error", message: error.message });
+  }
+};
+
+exports.getRoomById = async (req, res) => {
   try {
     const room = await Room.findById(req.params.id);
-
-    if (!room) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Room not found" });
-    }
-
-    res.json({ success: true, room });
+    if (!room) return res.status(404).json({ status: "fail", message: "Room not found" });
+    res.json({ status: "success", data: { room } });
   } catch (error) {
-    // If the id format is wrong mongoose throws a CastError
-    if (error.name === "CastError") {
-      return res
-        .status(400)
-        .json({ success: false, message: "Invalid room ID format" });
-    }
-    next(error);
+    res.status(400).json({ status: "fail", message: error.message });
   }
 };
 
-// ─────────────────────────────────────────────
-// POST /rooms
-// Create a new room
-// Required body fields: name, price, location (or area)
-// ─────────────────────────────────────────────
-const createRoom = async (req, res, next) => {
+exports.createRoom = async (req, res) => {
   try {
-    const { name, price, image, rating, reviews, amenities, description } =
-      req.body;
-    const location = extractLocation(req.body);
-
-    // ── Validation ──────────────────────────
-    if (!name || String(name).trim() === "") {
-      return res
-        .status(400)
-        .json({ success: false, message: "Room name is required" });
+    const roomData = { ...req.body };
+    
+    // Geocode address if provided
+    if (roomData.address && (!roomData.coordinates || !roomData.coordinates.lat)) {
+      const apiKey = process.env.GOOGLE_MAPS_API_KEY;
+      if (apiKey) {
+        try {
+          const response = await axios.get(
+            `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(roomData.address)}&key=${apiKey}`
+          );
+          if (response.data.status === "OK") {
+            const location = response.data.results[0].geometry.location;
+            roomData.coordinates = {
+              lat: location.lat,
+              lng: location.lng
+            };
+          }
+        } catch (geocodeError) {
+          console.error("Geocoding failed during room creation:", geocodeError.message);
+          // Proceed without coordinates or handle error based on requirements
+        }
+      }
     }
 
-    if (price === undefined || price === null || price === "") {
-      return res
-        .status(400)
-        .json({ success: false, message: "Room price is required" });
-    }
-
-    if (isNaN(Number(price)) || Number(price) <= 0) {
-      return res.status(400).json({
-        success: false,
-        message: "Price must be a valid positive number",
-      });
-    }
-
-    if (!location) {
-      return res.status(400).json({
-        success: false,
-        message: "Location / area is required",
-      });
-    }
-    // ─────────────────────────────────────────
-
-    const newRoom = await Room.create({
-      name: String(name).trim(),
-      price: Number(price),
-      location,
-      image: image ? String(image).trim() : undefined,
-      rating: rating !== undefined ? Number(rating) : undefined,
-      reviews: reviews !== undefined ? Number(reviews) : undefined,
-      amenities: Array.isArray(amenities) ? amenities : undefined,
-      description: description ? String(description).trim() : undefined,
-    });
-
-    res.status(201).json({
-      success: true,
-      message: "Room added successfully!",
-      room: newRoom,
-    });
+    const newRoom = await Room.create(roomData);
+    res.status(201).json({ status: "success", data: { room: newRoom } });
   } catch (error) {
-    // Mongoose validation errors (e.g. required field missing)
-    if (error.name === "ValidationError") {
-      const messages = Object.values(error.errors).map((e) => e.message);
-      return res.status(400).json({ success: false, message: messages[0] });
-    }
-    next(error);
+    res.status(400).json({ status: "fail", message: error.message });
   }
 };
 
-// ─────────────────────────────────────────────
-// PUT /rooms/:id
-// Update an existing room
-// ─────────────────────────────────────────────
-const updateRoom = async (req, res, next) => {
+exports.updateRoom = async (req, res) => {
   try {
-    const { name, price, image, rating, reviews, amenities, description } =
-      req.body;
-    const location = extractLocation(req.body);
-
-    // Build the update object – only include fields that were sent
-    const updates = {};
-
-    if (name !== undefined) {
-      if (String(name).trim() === "") {
-        return res
-          .status(400)
-          .json({ success: false, message: "Room name cannot be empty" });
-      }
-      updates.name = String(name).trim();
-    }
-
-    if (price !== undefined) {
-      if (isNaN(Number(price)) || Number(price) <= 0) {
-        return res.status(400).json({
-          success: false,
-          message: "Price must be a valid positive number",
-        });
-      }
-      updates.price = Number(price);
-    }
-
-    if (location) updates.location = location;
-    if (image !== undefined) updates.image = String(image).trim();
-    if (rating !== undefined) updates.rating = Number(rating);
-    if (reviews !== undefined) updates.reviews = Number(reviews);
-    if (amenities !== undefined)
-      updates.amenities = Array.isArray(amenities) ? amenities : [];
-    if (description !== undefined)
-      updates.description = String(description).trim();
-
-    const updatedRoom = await Room.findByIdAndUpdate(
-      req.params.id,
-      updates,
-      {
-        new: true,          // Return the updated document
-        runValidators: true, // Run schema validation on update
-      }
-    );
-
-    if (!updatedRoom) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Room not found" });
-    }
-
-    res.json({
-      success: true,
-      message: "Room updated successfully!",
-      room: updatedRoom,
-    });
+    const updatedRoom = await Room.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
+    if (!updatedRoom) return res.status(404).json({ status: "fail", message: "Room not found" });
+    res.json({ status: "success", data: { room: updatedRoom } });
   } catch (error) {
-    if (error.name === "CastError") {
-      return res
-        .status(400)
-        .json({ success: false, message: "Invalid room ID format" });
-    }
-    if (error.name === "ValidationError") {
-      const messages = Object.values(error.errors).map((e) => e.message);
-      return res.status(400).json({ success: false, message: messages[0] });
-    }
-    next(error);
+    res.status(400).json({ status: "fail", message: error.message });
   }
 };
 
-// ─────────────────────────────────────────────
-// DELETE /rooms/:id
-// Delete a room by its ObjectId
-// ─────────────────────────────────────────────
-const deleteRoom = async (req, res, next) => {
+exports.deleteRoom = async (req, res) => {
   try {
     const deletedRoom = await Room.findByIdAndDelete(req.params.id);
-
-    if (!deletedRoom) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Room not found" });
-    }
-
-    res.json({
-      success: true,
-      message: "Room deleted successfully!",
-      room: deletedRoom,
-    });
+    if (!deletedRoom) return res.status(404).json({ status: "fail", message: "Room not found" });
+    res.json({ status: "success", data: null });
   } catch (error) {
-    if (error.name === "CastError") {
-      return res
-        .status(400)
-        .json({ success: false, message: "Invalid room ID format" });
-    }
-    next(error);
+    res.status(400).json({ status: "fail", message: error.message });
   }
 };
 
-module.exports = {
-  getAllRooms,
-  getRoomById,
-  createRoom,
-  updateRoom,
-  deleteRoom,
+exports.uploadRoomImages = async (req, res) => {
+  try {
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ status: "fail", message: "No images uploaded" });
+    }
+
+    const imageUrls = req.files.map(file => `/uploads/${file.filename}`);
+
+    res.status(200).json({
+      status: "success",
+      data: {
+        images: imageUrls
+      }
+    });
+  } catch (error) {
+    res.status(400).json({ status: "fail", message: error.message });
+  }
+};
+
+exports.bookRoom = async (req, res) => {
+  try {
+    const room = await Room.findById(req.params.id);
+    if (!room) {
+      return res.status(404).json({ status: "fail", message: "Room not found" });
+    }
+
+    if (room.availableRooms <= 0) {
+      return res.status(400).json({ status: "fail", message: "Fully Occupied" });
+    }
+
+    room.availableRooms -= 1;
+    await room.save();
+
+    res.status(200).json({
+      status: "success",
+      message: "Room booked successfully!",
+      data: { room }
+    });
+  } catch (error) {
+    res.status(400).json({ status: "fail", message: error.message });
+  }
 };
