@@ -8,17 +8,30 @@
     "dev": "nodemon server.js",
     "check": "node --check server.js"
   },
-  "keywords": ["roomsathi", "nagpur", "room-finder", "backend"],
+  "keywords": [
+    "roomsathi",
+    "nagpur",
+    "room-finder",
+    "backend"
+  ],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "axios": "^1.15.2",
+    "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
+    "express-rate-limit": "^8.4.1",
+    "helmet": "^8.1.0",
+    "joi": "^18.1.2",
+    "jsonwebtoken": "^9.0.3",
     "mongodb": "^6.8.0",
     "mongoose": "^8.4.1",
-    "multer": "^1.4.5-lts.1"
+    "mongoose-paginate-v2": "^1.9.4",
+    "multer": "^1.4.5-lts.1",
+    "xss-clean": "^0.1.4"
   },
   "devDependencies": {
     "nodemon": "^3.1.4"

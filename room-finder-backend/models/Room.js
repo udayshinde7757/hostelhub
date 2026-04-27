@@ -1,10 +1,10 @@
 const mongoose = require("mongoose");
+const mongoosePaginate = require("mongoose-paginate-v2");
 
 /**
  * Room Schema
  *
  * Stores all data about a single room listing in Nagpur.
- * Every field is carefully typed and validated.
  */
 const roomSchema = new mongoose.Schema(
   {
@@ -13,7 +13,6 @@ const roomSchema = new mongoose.Schema(
       required: [true, "Room name is required"],
       trim: true,
     },
-
     price: {
       type: Number,
       required: [true, "Room price is required"],
@@ -22,6 +21,11 @@ const roomSchema = new mongoose.Schema(
     location: {
       type: String,
       required: [true, "Location / area is required"],
+      trim: true,
+    },
+    address: {
+      type: String,
+      required: [true, "Detailed address is required"],
       trim: true,
     },
     ownerContact: {
@@ -35,27 +39,49 @@ const roomSchema = new mongoose.Schema(
     },
     image: {
       type: String,
-      // A real Unsplash photo is used so the UI never shows broken images
-      default:
-        "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800&q=80",
+      default: "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800&q=80",
       trim: true,
     },
     images: {
       type: [String],
       default: [],
     },
+    // New Fields for Recommendation Engine
+    rating: {
+      type: Number,
+      default: 4.5,
+      min: 0,
+      max: 5,
+    },
+    reviewsCount: {
+      type: Number,
+      default: 0,
+    },
+    amenities: {
+      type: [String],
+      default: ["Wifi", "Water"],
+    },
+    coordinates: {
+      lat: { type: Number },
+      lng: { type: Number },
+    },
+    roomCount: {
+      type: Number,
+      default: 1,
+      min: [1, "At least one room is required"],
+    },
+    availableRooms: {
+      type: Number,
+      default: 1,
+      min: [0, "Available rooms cannot be negative"],
+    },
   },
   {
-    // Automatically add createdAt and updatedAt fields
     timestamps: true,
-
-    // Control how documents look when sent as JSON to the frontend
     toJSON: {
       virtuals: true,
       transform: (_doc, ret) => {
-        // Add a plain string "id" field that the frontend can use easily
         ret.id = ret._id.toString();
-        // Add "area" as an alias for "location" so the old frontend still works
         ret.area = ret.location;
         delete ret._id;
         delete ret.__v;
@@ -65,9 +91,11 @@ const roomSchema = new mongoose.Schema(
   }
 );
 
-// Virtual getter – lets you do room.area anywhere in backend code too
 roomSchema.virtual("area").get(function () {
   return this.location;
 });
 
+roomSchema.plugin(mongoosePaginate);
+
 module.exports = mongoose.model("Room", roomSchema);
+
