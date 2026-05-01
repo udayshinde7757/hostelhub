@@ -12,12 +12,12 @@ const authRoutes = require("./routes/authRoutes");
 const mapsRoutes = require("./routes/mapsRoutes");
 
 const app = express();
-<<<<<<< HEAD
-const PORT = Number(process.env.PORT) || 3000;
-const MONGODB_URI = process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/roomsathi";
-const uploadsDir = path.join(__dirname, "uploads");
-=======
->>>>>>> 557d68b498b810b538a8ccf4e9c5227fb6f8ea4e
+
+const fs = require('fs');
+if (!fs.existsSync(path.join(__dirname, 'uploads'))) {
+  fs.mkdirSync(path.join(__dirname, 'uploads'));
+}
+
 
 // 1) GLOBAL MIDDLEWARES
 // Set security HTTP headers
