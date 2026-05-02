@@ -10,14 +10,13 @@ const path = require("path");
 const roomRoutes = require("./routes/roomRoutes");
 const authRoutes = require("./routes/authRoutes");
 const mapsRoutes = require("./routes/mapsRoutes");
+const fs = require("fs");
 
 const app = express();
-
-const fs = require('fs');
-if (!fs.existsSync(path.join(__dirname, 'uploads'))) {
-  fs.mkdirSync(path.join(__dirname, 'uploads'));
+const uploadsDir = path.join(__dirname, "uploads");
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir);
 }
-
 
 // 1) GLOBAL MIDDLEWARES
 // Set security HTTP headers
