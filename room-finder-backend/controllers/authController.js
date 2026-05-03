@@ -14,6 +14,7 @@ const createSendToken = (user, statusCode, res) => {
   user.password = undefined;
 
   res.status(statusCode).json({
+    success: true,
     status: "success",
     token,
     data: {
@@ -27,11 +28,13 @@ exports.signup = async (req, res, next) => {
     const newUser = await User.create({
       email: req.body.email,
       password: req.body.password,
+      role: req.body.role || "user",
     });
 
     createSendToken(newUser, 201, res);
   } catch (err) {
     res.status(400).json({
+      success: false,
       status: "fail",
       message: err.message,
     });
@@ -44,20 +47,21 @@ exports.login = async (req, res, next) => {
 
     // 1) Check if email and password exist
     if (!email || !password) {
-      return res.status(400).json({ status: "fail", message: "Please provide email and password!" });
+      return res.status(400).json({ success: false, status: "fail", message: "Please provide email and password!" });
     }
 
     // 2) Check if user exists && password is correct
     const user = await User.findOne({ email }).select("+password");
 
     if (!user || !(await user.comparePassword(password, user.password))) {
-      return res.status(401).json({ status: "fail", message: "Incorrect email or password" });
+      return res.status(401).json({ success: false, status: "fail", message: "Incorrect email or password" });
     }
 
     // 3) If everything ok, send token to client
     createSendToken(user, 200, res);
   } catch (err) {
     res.status(400).json({
+      success: false,
       status: "fail",
       message: err.message,
     });
@@ -91,4 +95,16 @@ exports.protect = async (req, res, next) => {
   } catch (err) {
     res.status(401).json({ status: "fail", message: "Invalid token or session expired" });
   }
+};
+
+exports.authorizeRoles = (...roles) => {
+  return (req, res, next) => {
+    if (!roles.includes(req.user.role)) {
+      return res.status(403).json({
+        status: "fail",
+        message: "You do not have permission to perform this action",
+      });
+    }
+    next();
+  };
 };

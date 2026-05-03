@@ -1,0 +1,242 @@
+
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RoomSathi - Nagpur Room Finder</title>
+  <link rel="icon" type="image/jpeg" href="logo.jpeg">
+  <link rel="stylesheet" href="style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-container">
+      <div class="logo">
+        <img src="logo.jpeg" alt="RoomSathi Logo" style="width: 28px; height: 28px; border-radius: 6px; object-fit: cover;"> <span>Room</span>Sathi
+      </div>
+      <div class="nav-links">
+        <a href="index.html" class="active">Home</a>
+        <a href="#" id="openAddRoomBtn">Add Room</a>
+        <a href="student.html" id="dashboardBtn" class="hidden">Student Dashboard</a>
+        <a href="#" id="openDirectionsBtn">Google Map</a>
+        <a href="login.html" id="authEntryBtn">Login</a>
+      </div>
+    </div>
+  </nav>
+
+  <header class="hero">
+    <div class="badge-pill">
+      <i data-lucide="sparkles"></i> 16 hand-picked rooms in Nagpur
+    </div>
+
+    <h1>Sleep well.<br>Wander further.</h1>
+    <p>Discover premium rooms with soul - from quiet corners in Sadar to bustling streets of Manish Nagar.</p>
+
+    <div class="search-bar">
+      <i data-lucide="search" class="search-icon"></i>
+      <select id="heroAreaSelect" class="search-input">
+        <option value="all">Search by area in Nagpur...</option>
+        <option value="Sadar">Sadar</option>
+        <option value="Dharampeth">Dharampeth</option>
+        <option value="Sitabuldi">Sitabuldi</option>
+        <option value="Manish Nagar">Manish Nagar</option>
+        <option value="Hingna">Hingna</option>
+        <option value="Trimurti Nagar">Trimurti Nagar</option>
+        <option value="IT Park">IT Park</option>
+      </select>
+    </div>
+
+    <div class="quick-links">
+      <button class="pill" data-area="Dharampeth">Dharampeth</button>
+      <button class="pill" data-area="Manish Nagar">Manish Nagar</button>
+      <button class="pill" data-area="Sitabuldi">Sitabuldi</button>
+      <button class="pill" data-area="IT Park">IT Park</button>
+      <button class="pill" data-area="Sadar">Sadar</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <section id="recommendedSection" class="recommended-section">
+      <div class="section-header">
+        <div class="header-titles">
+          <h2>⭐ Recommended for You</h2>
+          <p class="subtitle">AI-powered suggestions based on price, location, and rating</p>
+        </div>
+      </div>
+      <div id="recommendedContainer" class="room-grid recommended-grid">
+        <!-- Recommended rooms will be injected here -->
+      </div>
+    </section>
+
+    <div class="listing-header">
+      <div class="header-titles">
+        <h2 id="resultCount">All stays in Nagpur</h2>
+        <p class="subtitle">Browse our complete collection</p>
+      </div>
+
+
+      <div class="filters">
+        <div class="filter-item">
+          <i data-lucide="sliders-horizontal"></i>
+          <input type="number" id="priceFilter" placeholder="Max Price (INR)" class="price-input">
+        </div>
+      </div>
+    </div>
+
+    <div id="roomContainer" class="room-grid"></div>
+
+    <div id="noResults" class="no-results hidden">
+      <i data-lucide="search-x" class="empty-icon"></i>
+      <h3>No rooms found</h3>
+      <p>Try increasing your price limit or changing the area.</p>
+    </div>
+
+    <section id="mapSection" class="map-section hidden" aria-label="Map and route">
+      <div class="map-topbar">
+        <div>
+          <h3>Route Preview</h3>
+          <p id="routeMeta" class="route-meta">Enter a destination to see the best route.</p>
+        </div>
+        <button id="hideMapBtn" class="btn-secondary" type="button">Hide</button>
+      </div>
+      <div id="map" class="map" role="application" aria-label="Map"></div>
+    </section>
+  </main>
+
+  <div id="addRoomModal" class="modal hidden">
+    <div class="modal-content">
+      <span class="close-btn" id="closeAddRoomBtn"><i data-lucide="x"></i></span>
+      <h2>Add a New Room</h2>
+      <form id="addRoomForm">
+        <div class="form-group">
+          <label>Room Name</label>
+          <input type="text" id="roomNameInput" placeholder="e.g. Cozy PG for Boys" required>
+        </div>
+        <div class="form-group">
+          <label>Price (INR per month)</label>
+          <input type="number" id="roomPriceInput" placeholder="e.g. 5000" required>
+        </div>
+        <div class="form-group">
+          <label>Area in Nagpur</label>
+          <select id="roomAreaInput" required>
+            <option value="" disabled selected>Select an area</option>
+            <option value="Sadar">Sadar</option>
+            <option value="Dharampeth">Dharampeth</option>
+            <option value="Sitabuldi">Sitabuldi</option>
+            <option value="Manish Nagar">Manish Nagar</option>
+            <option value="Hingna">Hingna</option>
+            <option value="Trimurti Nagar">Trimurti Nagar</option>
+            <option value="IT Park">IT Park</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Detailed Address</label>
+          <input type="text" id="roomAddressInput" placeholder="e.g. Plot 42, Main Road, Sadar" required>
+        </div>
+        <div class="form-group">
+          <label>Owner Contact (Phone)</label>
+          <input type="text" id="roomOwnerContactInput" placeholder="e.g. 9876543210" required>
+        </div>
+        <div class="form-group" style="display: flex; align-items: center; gap: 8px;">
+          <input type="checkbox" id="roomMessAvailableInput">
+          <label for="roomMessAvailableInput" style="margin: 0;">Mess Available</label>
+        </div>
+        <div class="form-group" style="display: flex; gap: 10px;">
+          <div style="flex: 1;">
+            <label>Total Rooms</label>
+            <input type="number" id="roomCountInput" placeholder="e.g. 10" required min="1" value="1">
+          </div>
+          <div style="flex: 1;">
+            <label>Available Rooms</label>
+            <input type="number" id="availableRoomsInput" placeholder="e.g. 5" required min="0" value="1">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Room Images (JPG/PNG, max 2MB each, up to 5)</label>
+          <input type="file" id="roomImagesInput" multiple accept="image/jpeg,image/jpg,image/png" class="file-input">
+          <div id="imagePreviewArea" style="display:flex;flex-wrap:wrap;gap:10px;margin-top:10px;"></div>
+        </div>
+        <p id="formError" class="error-text hidden">Please fill in all required fields properly.</p>
+        <button type="submit" class="btn-primary full-width">Add Room</button>
+      </form>
+    </div>
+  </div>
+
+  <div id="loginModal" class="modal hidden">
+    <div class="modal-content">
+      <span class="close-btn" id="closeLoginBtn"><i data-lucide="x"></i></span>
+      <h2>Login to RoomSathi</h2>
+      <form id="loginForm">
+        <div class="form-group">
+          <label>Email Address</label>
+          <input type="email" id="loginEmail" placeholder="student@example.com" required>
+        </div>
+        <div class="form-group">
+          <label>Password</label>
+          <input type="password" id="loginPassword" placeholder="********" required>
+        </div>
+        <p id="loginError" class="error-text hidden"></p>
+        <button type="submit" class="btn-primary full-width">Login</button>
+        <p class="form-footer">Don't have an account? <a href="#" id="openSignupBtn">Sign up</a></p>
+      </form>
+    </div>
+  </div>
+
+  <div id="signupModal" class="modal hidden">
+    <div class="modal-content">
+      <span class="close-btn" id="closeSignupBtn"><i data-lucide="x"></i></span>
+      <h2>Sign up for RoomSathi</h2>
+      <form id="signupForm">
+        <div class="form-group">
+          <label>Email Address</label>
+          <input type="email" id="signupEmail" placeholder="student@example.com" required>
+        </div>
+        <div class="form-group">
+          <label>Password</label>
+          <input type="password" id="signupPassword" placeholder="********" required>
+        </div>
+        <p id="signupError" class="error-text hidden"></p>
+        <button type="submit" class="btn-primary full-width">Sign Up</button>
+        <p class="form-footer">Already have an account? <a href="#" id="backToLoginBtn">Login</a></p>
+      </form>
+    </div>
+  </div>
+
+  <div id="directionsModal" class="modal hidden">
+    <div class="modal-content">
+      <span class="close-btn" id="closeDirectionsBtn"><i data-lucide="x"></i></span>
+      <h2>Get Directions</h2>
+      <form id="directionsForm">
+        <div class="form-group">
+          <label>Destination</label>
+          <input
+            type="text"
+            id="destinationInput"
+            placeholder="e.g. VNIT Nagpur, Dharampeth"
+            autocomplete="off"
+            required
+          >
+        </div>
+        <div class="form-group">
+          <label>Travel Mode</label>
+          <select id="travelModeSelect">
+            <option value="driving" selected>Driving</option>
+            <option value="walking">Walking</option>
+            <option value="cycling">Cycling</option>
+          </select>
+        </div>
+        <p id="directionsError" class="error-text hidden"></p>
+        <div class="btn-row">
+          <button id="previewRouteBtn" type="submit" class="btn-primary">Preview Route</button>
+          <button id="openGoogleMapsBtn" type="button" class="btn-secondary">Open Google Maps</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="toastContainer" class="toast-container"></div>
+  <script src="script.js"></script>
+</body>
+</html>
+

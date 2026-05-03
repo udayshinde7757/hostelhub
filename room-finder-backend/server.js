@@ -43,6 +43,7 @@ app.use(xss());
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // 2) ROUTES
+app.use("/api/rooms", roomRoutes);
 app.use("/api/v1/rooms", roomRoutes);
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/maps", mapsRoutes);

@@ -3,239 +3,317 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>RoomSathi - Nagpur Room Finder</title>
-  <link rel="icon" type="image/jpeg" href="logo.jpeg">
+  <title>RoomSathi - Premium Student Housing in Nagpur</title>
+  <meta name="description" content="Find verified rooms, hostels, and PGs in Nagpur. Direct WhatsApp booking with landlords. Secure and affordable student housing.">
   <link rel="stylesheet" href="style.css">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script src="https://unpkg.com/lucide@latest"></script>
 </head>
 <body>
+  <!-- NAVBAR -->
   <nav class="navbar">
-    <div class="nav-container">
-      <div class="logo">
-        <img src="logo.jpeg" alt="RoomSathi Logo" style="width: 28px; height: 28px; border-radius: 6px; object-fit: cover;"> <span>Room</span>Sathi
+    <div class="container nav-container">
+      <div class="logo" onclick="window.location.reload()">
+        <i data-lucide="home" style="width: 28px; height: 28px;"></i>
+        Room<span>Sathi</span>
       </div>
       <div class="nav-links">
-        <a href="index.html" class="active">Home</a>
-        <a href="#" id="openAddRoomBtn">Add Room</a>
-        <a href="student.html" id="dashboardBtn" class="hidden">Student Dashboard</a>
-        <a href="#" id="openDirectionsBtn">Google Map</a>
-        <a href="login.html" id="authEntryBtn">Login</a>
+        <a href="#" class="active">Discover</a>
+        <a href="#" id="openDirectionsBtn">Map View</a>
+        <a href="#" id="myRoomsBtn" class="hidden">My Rooms</a>
+        <button class="btn-primary" id="openAddRoomBtn" style="padding: 10px 20px; font-size: 0.9rem;">
+          <i data-lucide="plus-circle" style="width: 18px; height: 18px;"></i> List Room
+        </button>
+        <a href="#" id="authEntryBtn">Login</a>
       </div>
     </div>
   </nav>
 
+  <!-- HERO SECTION -->
   <header class="hero">
     <div class="badge-pill">
-      <i data-lucide="sparkles"></i> 16 hand-picked rooms in Nagpur
+      <i data-lucide="sparkles" style="width: 16px; height: 16px;"></i>
+      Premium stays in Nagpur
     </div>
-
-    <h1>Sleep well.<br>Wander further.</h1>
-    <p>Discover premium rooms with soul - from quiet corners in Sadar to bustling streets of Manish Nagar.</p>
-
+    <h1>Find your perfect <br>stay in Nagpur</h1>
+    <p>Rooms, hostels, and PGs with verified landlords and direct WhatsApp booking.</p>
+    
     <div class="search-bar">
       <i data-lucide="search" class="search-icon"></i>
-      <select id="heroAreaSelect" class="search-input">
-        <option value="all">Search by area in Nagpur...</option>
-        <option value="Sadar">Sadar</option>
-        <option value="Dharampeth">Dharampeth</option>
-        <option value="Sitabuldi">Sitabuldi</option>
-        <option value="Manish Nagar">Manish Nagar</option>
-        <option value="Hingna">Hingna</option>
-        <option value="Trimurti Nagar">Trimurti Nagar</option>
-        <option value="IT Park">IT Park</option>
-      </select>
+      <input type="text" id="keywordFilter" placeholder="Search by area, title, or landmarks..." class="search-input">
     </div>
 
     <div class="quick-links">
-      <button class="pill" data-area="Dharampeth">Dharampeth</button>
-      <button class="pill" data-area="Manish Nagar">Manish Nagar</button>
-      <button class="pill" data-area="Sitabuldi">Sitabuldi</button>
-      <button class="pill" data-area="IT Park">IT Park</button>
-      <button class="pill" data-area="Sadar">Sadar</button>
+      <div class="pill active" data-area="all">All Areas</div>
+      <div class="pill" data-area="Dharampeth">Dharampeth</div>
+      <div class="pill" data-area="Sadar">Sadar</div>
+      <div class="pill" data-area="Manish Nagar">Manish Nagar</div>
+      <div class="pill" data-area="Sitabuldi">Sitabuldi</div>
     </div>
   </header>
 
   <main class="container">
-    <section id="recommendedSection" class="recommended-section">
-      <div class="section-header">
-        <div class="header-titles">
-          <h2>⭐ Recommended for You</h2>
-          <p class="subtitle">AI-powered suggestions based on price, location, and rating</p>
-        </div>
-      </div>
-      <div id="recommendedContainer" class="room-grid recommended-grid">
-        <!-- Recommended rooms will be injected here -->
-      </div>
-    </section>
-
+    <!-- FILTERS -->
     <div class="listing-header">
       <div class="header-titles">
-        <h2 id="resultCount">All stays in Nagpur</h2>
-        <p class="subtitle">Browse our complete collection</p>
+        <h2 id="resultCount">Discover Stays</h2>
+        <p class="subtitle">Showing verified properties in Nagpur</p>
       </div>
-
-
+      
       <div class="filters">
         <div class="filter-item">
-          <i data-lucide="sliders-horizontal"></i>
-          <input type="number" id="priceFilter" placeholder="Max Price (INR)" class="price-input">
-        </div>
-      </div>
-    </div>
-
-    <div id="roomContainer" class="room-grid"></div>
-
-    <div id="noResults" class="no-results hidden">
-      <i data-lucide="search-x" class="empty-icon"></i>
-      <h3>No rooms found</h3>
-      <p>Try increasing your price limit or changing the area.</p>
-    </div>
-
-    <section id="mapSection" class="map-section hidden" aria-label="Map and route">
-      <div class="map-topbar">
-        <div>
-          <h3>Route Preview</h3>
-          <p id="routeMeta" class="route-meta">Enter a destination to see the best route.</p>
-        </div>
-        <button id="hideMapBtn" class="btn-secondary" type="button">Hide</button>
-      </div>
-      <div id="map" class="map" role="application" aria-label="Map"></div>
-    </section>
-  </main>
-
-  <div id="addRoomModal" class="modal hidden">
-    <div class="modal-content">
-      <span class="close-btn" id="closeAddRoomBtn"><i data-lucide="x"></i></span>
-      <h2>Add a New Room</h2>
-      <form id="addRoomForm">
-        <div class="form-group">
-          <label>Room Name</label>
-          <input type="text" id="roomNameInput" placeholder="e.g. Cozy PG for Boys" required>
-        </div>
-        <div class="form-group">
-          <label>Price (INR per month)</label>
-          <input type="number" id="roomPriceInput" placeholder="e.g. 5000" required>
-        </div>
-        <div class="form-group">
-          <label>Area in Nagpur</label>
-          <select id="roomAreaInput" required>
-            <option value="" disabled selected>Select an area</option>
-            <option value="Sadar">Sadar</option>
-            <option value="Dharampeth">Dharampeth</option>
-            <option value="Sitabuldi">Sitabuldi</option>
-            <option value="Manish Nagar">Manish Nagar</option>
-            <option value="Hingna">Hingna</option>
-            <option value="Trimurti Nagar">Trimurti Nagar</option>
-            <option value="IT Park">IT Park</option>
+          <i data-lucide="filter" style="width: 18px; height: 18px;"></i>
+          <select id="sortBy" class="search-input-small">
+            <option value="recommended">Recommended</option>
+            <option value="newest">Newest First</option>
+            <option value="price_asc">Price: Low to High</option>
+            <option value="most_viewed">Most Viewed</option>
           </select>
         </div>
-        <div class="form-group">
-          <label>Detailed Address</label>
-          <input type="text" id="roomAddressInput" placeholder="e.g. Plot 42, Main Road, Sadar" required>
+        <div class="filter-item">
+          <i data-lucide="map-pin" style="width: 18px; height: 18px;"></i>
+          <select id="heroAreaSelect" class="search-input-small">
+            <option value="all">All of Nagpur</option>
+            <option value="Dharampeth">Dharampeth</option>
+            <option value="Sadar">Sadar</option>
+            <option value="Manish Nagar">Manish Nagar</option>
+            <option value="Sitabuldi">Sitabuldi</option>
+            <option value="Ramdaspeth">Ramdaspeth</option>
+            <option value="Laxmi Nagar">Laxmi Nagar</option>
+            <option value="Hingna Road">Hingna Road</option>
+          </select>
         </div>
-        <div class="form-group">
-          <label>Owner Contact (Phone)</label>
-          <input type="text" id="roomOwnerContactInput" placeholder="e.g. 9876543210" required>
+        <div class="filter-item">
+          <i data-lucide="indian-rupee" style="width: 18px; height: 18px;"></i>
+          <input type="number" id="priceFilter" placeholder="Max Price" class="price-input">
         </div>
-        <div class="form-group" style="display: flex; align-items: center; gap: 8px;">
-          <input type="checkbox" id="roomMessAvailableInput">
-          <label for="roomMessAvailableInput" style="margin: 0;">Mess Available</label>
+      </div>
+    </div>
+
+    <!-- ERROR SCREEN -->
+    <div id="errorScreen" class="error-screen hidden">
+      <div class="error-content">
+        <i data-lucide="alert-triangle" class="error-icon"></i>
+        <h3>Something went wrong</h3>
+        <p>We couldn't load the rooms. Please check your connection and try again.</p>
+        <button class="btn-primary" id="retryBtn">Retry Connection</button>
+      </div>
+    </div>
+
+    <!-- RECENTLY VIEWED -->
+    <section id="recentlyViewedSection" class="hidden" style="margin-bottom: 40px;">
+      <div class="section-header">
+        <h3>Recently Viewed</h3>
+        <p class="subtitle">Quick access to rooms you've checked out</p>
+      </div>
+      <div id="recentlyViewedContainer" class="room-grid" style="grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));">
+        <!-- Recently viewed items -->
+      </div>
+    </section>
+
+    <!-- ROOM GRID -->
+    <section id="roomContainer" class="room-grid">
+      <!-- Skeletons will be injected here -->
+    </section>
+
+    <!-- MAP SECTION (Floating/Hidden) -->
+    <div id="mapSection" class="map-section hidden">
+      <div class="map-topbar">
+        <div>
+          <h3>Room Explorer</h3>
+          <div id="routeMeta" class="route-meta">Select a room to see directions</div>
         </div>
-        <div class="form-group" style="display: flex; gap: 10px;">
-          <div style="flex: 1;">
-            <label>Total Rooms</label>
-            <input type="number" id="roomCountInput" placeholder="e.g. 10" required min="1" value="1">
+        <button class="btn-secondary" id="hideMapBtn">Close Map</button>
+      </div>
+      <div id="map" class="map"></div>
+    </div>
+  </main>
+
+  <!-- MODALS -->
+  
+  <!-- Room Details Modal (Airbnb Style) -->
+  <div id="roomDetailsModal" class="modal">
+    <div class="modal-content modal-large">
+      <div class="close-btn" id="closeRoomDetailsBtn">
+        <i data-lucide="x"></i>
+      </div>
+      
+      <div class="room-details-layout">
+        <!-- Gallery Section -->
+        <div class="room-gallery-wrap">
+          <div class="room-gallery-main" id="roomGallery">
+            <!-- Images will be injected here -->
           </div>
-          <div style="flex: 1;">
-            <label>Available Rooms</label>
-            <input type="number" id="availableRoomsInput" placeholder="e.g. 5" required min="0" value="1">
+          <button class="gallery-nav prev" id="prevGallery"><i data-lucide="chevron-left"></i></button>
+          <button class="gallery-nav next" id="nextGallery"><i data-lucide="chevron-right"></i></button>
+          <div class="gallery-dots" id="galleryDots"></div>
+        </div>
+
+        <!-- Info Section -->
+        <div class="room-info-card">
+          <div class="room-header-detail">
+            <div>
+              <h2 id="detailTitle">Room Title</h2>
+              <div class="area-tag">
+                <i data-lucide="map-pin" style="width: 16px; height: 16px;"></i>
+                <span id="detailArea">Area Name</span>
+              </div>
+            </div>
+            <div class="price-tag">
+              ₹<span id="detailPrice">0</span><small>/mo</small>
+            </div>
+          </div>
+
+          <div class="description-section">
+            <h4>About this stay</h4>
+            <p id="detailDescription" class="description-text">Description goes here...</p>
+          </div>
+
+          <div class="facilities-section">
+            <h4>Facilities</h4>
+            <div class="facilities-grid" id="detailFacilities">
+              <!-- Facilities injected here -->
+            </div>
+          </div>
+
+          <div class="address-section">
+            <h4>Location</h4>
+            <p id="detailAddress" style="color: var(--text-muted); font-size: 0.95rem;"></p>
+          </div>
+
+          <div class="action-buttons">
+            <button class="btn-primary btn-whatsapp" id="whatsappBookBtn">
+              <i data-lucide="message-circle"></i>
+              Book via WhatsApp
+            </button>
+            <button class="btn-secondary" id="showOnMapBtn">
+              <i data-lucide="navigation"></i>
+              Get Directions
+            </button>
           </div>
         </div>
-        <div class="form-group">
-          <label>Room Images (2-5 recommended)</label>
-          <input type="file" id="roomImagesInput" multiple accept="image/*" class="file-input">
-        </div>
-        <p id="formError" class="error-text hidden">Please fill in all required fields properly.</p>
-        <button type="submit" class="btn-primary full-width">Add Room</button>
-      </form>
+      </div>
     </div>
   </div>
 
+  <!-- Auth Modals -->
   <div id="loginModal" class="modal hidden">
     <div class="modal-content">
-      <span class="close-btn" id="closeLoginBtn"><i data-lucide="x"></i></span>
-      <h2>Login to RoomSathi</h2>
+      <div class="close-btn"><i data-lucide="x"></i></div>
+      <h2>Welcome Back</h2>
       <form id="loginForm">
         <div class="form-group">
           <label>Email Address</label>
-          <input type="email" id="loginEmail" placeholder="student@example.com" required>
+          <input type="email" id="loginEmail" required placeholder="name@example.com">
         </div>
         <div class="form-group">
           <label>Password</label>
-          <input type="password" id="loginPassword" placeholder="********" required>
+          <input type="password" id="loginPassword" required placeholder="••••••••">
         </div>
-        <p id="loginError" class="error-text hidden"></p>
-        <button type="submit" class="btn-primary full-width">Login</button>
-        <p class="form-footer">Don't have an account? <a href="#" id="openSignupBtn">Sign up</a></p>
+        <button type="submit" class="btn-primary full-width">Sign In</button>
+        <div class="form-footer">
+          Don't have an account? <a href="#" id="openSignupBtn">Create one</a>
+        </div>
       </form>
     </div>
   </div>
 
   <div id="signupModal" class="modal hidden">
     <div class="modal-content">
-      <span class="close-btn" id="closeSignupBtn"><i data-lucide="x"></i></span>
-      <h2>Sign up for RoomSathi</h2>
+      <div class="close-btn"><i data-lucide="x"></i></div>
+      <h2>Create Account</h2>
       <form id="signupForm">
         <div class="form-group">
           <label>Email Address</label>
-          <input type="email" id="signupEmail" placeholder="student@example.com" required>
+          <input type="email" id="signupEmail" required placeholder="name@example.com">
         </div>
         <div class="form-group">
           <label>Password</label>
-          <input type="password" id="signupPassword" placeholder="********" required>
+          <input type="password" id="signupPassword" required placeholder="Min. 8 characters">
         </div>
-        <p id="signupError" class="error-text hidden"></p>
-        <button type="submit" class="btn-primary full-width">Sign Up</button>
-        <p class="form-footer">Already have an account? <a href="#" id="backToLoginBtn">Login</a></p>
+        <div class="form-group">
+          <label>I am a:</label>
+          <div class="role-selector">
+            <label><input type="radio" name="role" value="user" checked> Student</label>
+            <label><input type="radio" name="role" value="landlord"> Landlord</label>
+          </div>
+        </div>
+        <button type="submit" class="btn-primary full-width">Join RoomSathi</button>
+        <div class="form-footer">
+          Already have an account? <a href="#" id="backToLoginBtn">Login</a>
+        </div>
       </form>
     </div>
   </div>
 
-  <div id="directionsModal" class="modal hidden">
-    <div class="modal-content">
-      <span class="close-btn" id="closeDirectionsBtn"><i data-lucide="x"></i></span>
-      <h2>Get Directions</h2>
-      <form id="directionsForm">
-        <div class="form-group">
-          <label>Destination</label>
-          <input
-            type="text"
-            id="destinationInput"
-            placeholder="e.g. VNIT Nagpur, Dharampeth"
-            autocomplete="off"
-            required
-          >
-        </div>
-        <div class="form-group">
-          <label>Travel Mode</label>
-          <select id="travelModeSelect">
-            <option value="driving" selected>Driving</option>
-            <option value="walking">Walking</option>
-            <option value="cycling">Cycling</option>
-          </select>
-        </div>
-        <p id="directionsError" class="error-text hidden"></p>
+  <!-- Add Room Modal -->
+  <div id="addRoomModal" class="modal hidden">
+    <div class="modal-content" style="max-width: 600px;">
+      <div class="close-btn"><i data-lucide="x"></i></div>
+      <h2>List Your Property</h2>
+      <form id="addRoomForm">
         <div class="btn-row">
-          <button id="previewRouteBtn" type="submit" class="btn-primary">Preview Route</button>
-          <button id="openGoogleMapsBtn" type="button" class="btn-secondary">Open Google Maps</button>
+          <div class="form-group">
+            <label>Property Title</label>
+            <input type="text" id="roomTitleInput" required placeholder="e.g. Luxury Single Room">
+          </div>
+          <div class="form-group">
+            <label>Price (INR/mo)</label>
+            <input type="number" id="roomPriceInput" required placeholder="5000">
+          </div>
         </div>
+        <div class="btn-row">
+          <div class="form-group">
+            <label>Area</label>
+            <select id="roomAreaInput" required>
+              <option value="Dharampeth">Dharampeth</option>
+              <option value="Sadar">Sadar</option>
+              <option value="Manish Nagar">Manish Nagar</option>
+              <option value="Sitabuldi">Sitabuldi</option>
+              <option value="Wardha Road">Wardha Road</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>WhatsApp Number</label>
+            <input type="text" id="roomWhatsAppInput" required placeholder="91XXXXXXXXXX">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Full Address</label>
+          <input type="text" id="roomAddressInput" required placeholder="Building name, Street, Landmark">
+        </div>
+        <div class="form-group">
+          <label>Facilities (comma separated)</label>
+          <input type="text" id="roomFacilitiesInput" placeholder="wifi, food, ac, bed">
+        </div>
+        <div class="form-group">
+          <label>Description</label>
+          <textarea id="roomDescriptionInput" style="width:100%; height:80px; padding:10px; border-radius:8px; border:1px solid var(--border-color);" placeholder="Tell us about your room..."></textarea>
+        </div>
+        <div class="form-group">
+          <label>Property Images</label>
+          <input type="file" id="roomImagesInput" multiple accept="image/*">
+          <div id="imagePreviewContainer" class="image-preview-grid"></div>
+        </div>
+        <button type="submit" class="btn-primary full-width">List Property Now</button>
       </form>
+    </div>
+  </div>
+
+  <!-- My Rooms Management Modal -->
+  <div id="myRoomsModal" class="modal hidden">
+    <div class="modal-content modal-large">
+      <div class="close-btn"><i data-lucide="x"></i></div>
+      <h2>Manage Your Listings</h2>
+      <p class="subtitle" style="margin-bottom: 20px;">View, edit, or remove your listed properties</p>
+      <div id="myRoomsContainer" class="room-grid" style="grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));">
+        <!-- Landlord's rooms injected here -->
+      </div>
     </div>
   </div>
 
   <div id="toastContainer" class="toast-container"></div>
+
   <script src="script.js"></script>
 </body>
 </html>
-
